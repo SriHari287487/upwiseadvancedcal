@@ -1,0 +1,111 @@
+@import "~@fontsource/instrument-sans/400.css";
+
+.headerContainer{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    gap: 20px;
+    background: #ffffff;
+    border-bottom: 2px solid #F1F1F1;
+
+    .middleContainer{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+
+        .date{
+            font-size: 12px;
+            font-weight: 700;
+            color: #6B7A99;
+            font-family: Inter, sans-serif;
+        }
+    }
+
+    .sideBar{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        
+        .viewSwitcher {
+        background: #ffffff;
+        border: 2px solid #F5F6F7;
+        border-radius: 9999px;
+        display: inline-flex;
+        gap: 2px;
+
+        .divider{
+            width: 2px;
+            background: #F5F6F7;
+            // margin: 4px 0;
+        }
+        .switchBtn {
+            flex: 1;
+            padding: 11px 20px;
+            border: none;
+            background: transparent;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #ADB8CC;
+            cursor: pointer;
+            transition: all 0.15s ease;
+
+            &:hover {
+            color: #ADB8CC;
+            background: #f1f5f9;
+            }
+
+            &.active {
+            background: #fff;
+            color: #6B7A99;
+            // box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+        }
+        }
+    }
+
+    .createButton{
+        border: none;
+        outline: none;
+        background: #4575DA;
+        border-radius: 10px;
+        padding: 10px 20px;
+        color: white;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+}
+
+
+.headerContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.headerContainer .sideBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headerContainer .middleContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerContainer .date {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  min-width: 180px;
+  text-align: center;
+}

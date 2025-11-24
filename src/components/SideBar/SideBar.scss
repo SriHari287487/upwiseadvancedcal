@@ -1,0 +1,231 @@
+.sidebarContainer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 10%;
+  height: 100%;
+  background: transparent;
+  box-sizing: border-box;
+  gap:20px
+}
+
+.services {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: scroll;
+  scrollbar-width: none;
+}
+
+.servicePill {
+      border-radius: 14px;
+    justify-content: center;
+    box-shadow: 0 4px 10px #0000001f;
+    /* color: #fff; */
+    display: flex;
+    flex-direction: column;
+    font-weight: 600;
+    gap: 2px;
+    padding: 0px;
+
+  .serviceName {
+   padding: 10px;
+   background: #fff;
+    border-radius: 14px 14px 0px 0px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #000000;
+    text-align: center;
+  }
+
+  .serviceCount {
+    border-radius: 0px 0px 14px 14px;
+    text-align: center;
+    padding: 7px 15px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+  }
+}
+
+.tileWrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.dateTile {
+  background: #ffffff;
+  padding: 10px;
+    border: 1px solid #26334D0D;
+    border-radius: 20px;
+    /* box-shadow: inset 0 0 0 2px #0000000d; */
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    height: 70px;
+    justify-content: center;
+    align-items: center;
+    /* place-items: center; */
+    transition: transform .08s ease;
+    width: 70px;
+  &:active {
+    transform: translateY(1px);
+  }
+
+  .dateNum {
+        color: #6B7A99;
+    font-size: 30px;
+    font-weight: 700;
+  }
+
+  .dateMonth {
+    color: #6B7A99;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0px;
+  }
+}
+
+.calendarModal {
+  position: absolute;                 /* relative to viewport */
+  bottom: 0px;
+  right: 0px;
+  transform: translate(-47%, -6%);
+  // transform: translate(calc(100% - 147px), calc(100% - 60px));
+  z-index: 1300;                   /* above page; MUI Dialog ~1300 */
+  outline: none;
+
+  /* panel */
+  .calendar {
+    background: #fff;
+    border-radius: 20px;
+    // box-shadow: 0 18px 50px #0000002e;
+    max-height: min(80vh, 500px);
+    overflow: auto;
+    padding: 30px;
+    width: clamp(280px, 40vw, 360px);
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+}
+
+/* Small screens: center horizontally near the bottom */
+.calendarModal.is-small {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  bottom: 12px;
+  .calendar {
+    width: min(92vw, 360px);
+  }
+}
+
+.calHeader {
+    align-items: center;
+    justify-content: space-evenly;
+    display: flex;
+
+  .calTitle {
+    color: #6B7A99;
+    font-weight: 700;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .navBtn {
+    background: #fff;
+    border: 2px solid #F5F6F7;
+    border-radius: 50px;
+    color: #C3CAD9 !important;
+    height: 40px;
+    width: 40px;
+    padding: 10px;
+
+    &:hover {
+      background: #f7f9fb;
+    }
+  }
+}
+
+.dowRow {
+ color: #6B7A99;
+    display: grid;
+    font-size: 11px;
+    font-weight: 500;
+    grid-template-columns: repeat(7, 1fr);
+    // padding: 0px 6px;
+
+  .dow {
+    text-align: center;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  row-gap: 4px;
+  // padding: 0 6px 6px 6px;
+
+  .week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    column-gap: 2px;
+  }
+}
+
+.cell {
+  position: relative;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #ffffff;
+  color: #6B7A99;
+  font-weight: 500;
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #eaeaea98;
+    background: #eaeaea98;
+  }
+
+  &.outside {
+    color: #cbd5e1;
+  }
+
+  &.today {
+    box-shadow: inset 0 0 0 2px #eaeaeac9;
+  }
+
+  &.selected {
+    background: #dcdadaab;
+  }
+
+  .dots {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 3px;
+
+    i {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #8b5cf6;
+      opacity: 0.7;
+    }
+  }
+
+  // &.selected .dots i {
+  //   background: #fff;
+  // }
+}
+
+

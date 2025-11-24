@@ -1,0 +1,173 @@
+.titleField::placeholder{
+    color:#9AA2B3,
+}
+.meeting-section {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 12px 16px;
+}
+
+.meeting-section + .meeting-section {
+  margin-top: 8px;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+}
+
+.field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.titleError::placeholder{
+    color:#F04438,
+}
+.row2{
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border-bottom: 2px solid #F1F1F1;
+    box-sizing: border-box;
+
+    .row2Container{
+        flex: 1;
+        display: flex;                // ← make the half a row
+        align-items: center;
+        justify-content: space-around;
+        gap: 0; 
+        min-width: 50%;
+
+        .contaienrSection{
+            flex: 1;
+            min-width: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+    }
+}
+
+.participantsContainer{
+    display: flex;
+    flex-direction:column;
+    align-items: center;
+    padding: 20px;
+    gap: 10px;
+
+    .participantsHeader{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 10px 10px 10px;
+        width: 100%;
+        border-bottom: 2px solid #F4F4F4;
+
+        .participatstitle{
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+            align-items: center;
+
+            span{
+                font-size: 16px;
+                font-weight: 500;
+                color: #9AA2B3;
+                cursor: pointer;
+            }
+        }
+
+        .headerActionContainer{
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+
+            button{
+                border:none;
+                outline:none;
+                background: none;
+                cursor: pointer;
+                color: #9AA2B3;
+
+                    background: #9AA2B31A;
+                    color: #9AA2B3;
+                    font-size: 14px;
+                    font-weight: 500;
+                    border-radius: 5px;
+                    padding: 5px 12px;
+            }
+
+           
+        }
+    }
+
+    .participantsListView{
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        align-items: stretch;
+
+        .participantCard{
+            padding: 12px 0px;
+            display: flex;
+            -webkit-box-align: center;
+            align-items: center;
+            -webkit-box-pack: justify;
+            justify-content: space-between;
+            border-bottom: 2px solid #F1F1F1;
+
+            .participantInfoCard{
+                display: flex;
+                -webkit-box-align: center;
+                align-items: center;
+                gap: 12px;
+                min-width: 300px;
+
+                .participantTitle{
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 8px;
+                }
+            }
+        }
+    }
+}
+
+.actionContianer{
+    display: flex;
+    -webkit-box-pack: end;
+    justify-content: flex-end;
+    gap: 10px;
+
+    button{
+        background: none;
+        border: none;
+        outline: none;
+        cursor: pointer;
+
+        &:nth-of-type(1){
+            color: #9AA2B3;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        &:nth-of-type(2){
+            background: #4575DA;
+            border-radius: 5px;
+            padding: 12px 13px;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 500;
+        }
+    }
+}

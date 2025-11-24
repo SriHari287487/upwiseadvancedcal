@@ -1,0 +1,14 @@
+.meetingCardContainer{
+    display: flex;
+    flex-direction: column;
+    border-radius: 15px;
+}
+
+.row_1{
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+    align-items: center;
+    border-radius: 2px solid #F1F1F1;
+}

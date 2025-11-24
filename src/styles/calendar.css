@@ -1,0 +1,127 @@
+:root{
+  --gutter: 60px;
+  --col-min: clamp(120px, 16vw, 220px); /* column min grows/shrinks with screen */
+  --row: 60px;
+  --header-h: 40px;
+  --line: 1px;
+  --line-color: #F1F1F1;
+}
+
+
+/* grid scaffold: header + body rows; gutter + N resource columns */
+.grid-cal{
+  position: relative;          /* needed for sticky containment */
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  background: #fff;
+  /* border: 1px solid #e5e7eb;
+  border-radius: 8px; */
+  overflow: auto;              /* scroll container for sticky */
+  scrollbar-width: none;
+}
+
+/* headers */
+.hdr{
+  display:flex; 
+  align-items:center; 
+  justify-content:center;
+  height: var(--header-h);
+  font-weight: 700;
+  font-size: 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6B7A99;
+  /* NEW: freeze header on vertical scroll */
+  position: sticky;
+  top: 0;
+  z-index: 3; /* above body + gutter column */
+}
+.gutter-hdr{
+  grid-column: 1;
+
+  /* NEW: top-left corner fixed on both X and Y */
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 4; /* highest so it sits above all */
+}
+
+
+/* .gutter-body::after{
+  content:"";
+  position:absolute; 
+  top:0; 
+  bottom:0; 
+  right:0; 
+  width:0.5px; 
+  background:#cbd5e1;
+} */
+
+/* .gutter-row{
+  height: var(--row);
+  display:flex; 
+  align-items:center;
+  padding-left: 10px;
+  color:#64748b;
+   font-weight:600;
+} */
+
+/* each resource column */
+.col-body{
+  position: relative;
+  border-left: 1px solid #F1F1F1; /* vertical grid lines */
+}
+
+/* background hour lines (no borders) */
+.col-bg{
+  position:absolute; inset:0;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(var(--row) - var(--line)),
+      var(--line-color) calc(var(--row) - var(--line)) var(--row)
+    );
+  pointer-events:none;
+  z-index: 0; /* ensure it's behind events */
+}
+
+/* the layer for events */
+.col-events{
+  position:absolute; inset:0;
+  pointer-events:none;   /* individual cards enable their own */
+  z-index: 1;            /* above bg, below sticky header/gutter */
+}
+
+
+
+/* current time (now) indicator */
+.now-line{
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: #FF6633;          /* red-500 */
+  z-index: 3;                    /* above bg & events */
+  pointer-events: none;
+}
+
+/* small red dot inside the time gutter */
+.now-dot{
+  position: absolute;
+  left: calc(var(--gutter) - 55px);  /* align near the right edge of gutter */
+  transform: translateX(-50%) translateY(-50%);
+  width: 10px; height: 10px;
+  background: #FF6633;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff;    /* white outline over the gutter bg */
+  z-index: 4;
+  pointer-events: none;
+}
+
+
+/* (optional) fine-tune at breakpoints */
+@media (max-width: 900px) {
+  :root { --col-min: clamp(110px, 22vw, 190px); }
+}
+@media (min-width: 1400px) {
+  :root { --col-min: clamp(140px, 12vw, 260px); }
+}

@@ -1,0 +1,557 @@
+// .cal-root {
+//   --row: 60px;           /* 1 hour = 60px — keep in sync with ROW_HEIGHT */
+//   --gutter: 100px;       /* time gutter width */
+//   --col-min: 220px;      /* minimum staff column width */
+
+//   /* Vertical scroll only to avoid both-axes overflow */
+//   height: calc(100vh - 60px);
+//   overflow-y: scroll;
+//   overflow-x: scroll;
+//   scrollbar-width: none;
+// }
+
+// .grid-cal {
+//   display: grid;
+//   grid-template-rows: 44px repeat(24, var(--row));
+//   position: relative;
+// }
+
+// /* Headers */
+// .hdr {
+//   position: sticky;
+//   top: 0;
+//   z-index: 5;
+//   background: #fff;
+//   border-bottom: 1px solid #eef2f7;
+//   display: flex;
+//   align-items: center;
+// }
+
+// .gutter-hdr {
+//   grid-row: 1 / 2;
+//   grid-column: 1 / 2;
+// }
+
+// .staff-hdr {
+//   grid-row: 1 / 2;
+//   padding: 0 12px;
+//   font-weight: 600;
+//   color: #334155;
+// }
+
+// /* Time gutter (sticky) */
+// .gutter-body {
+//   grid-row: 2 / span 24;
+//   grid-column: 1 / 2;
+//   position: sticky;
+//   left: 0;
+//   z-index: 4;
+//   border-right: 1px solid #eef2f7;
+//   background-image:
+//     repeating-linear-gradient(
+//       to bottom,
+//       transparent 0 calc(var(--row) - var(--line)),
+//       var(--line-color) calc(var(--row) - var(--line)) var(--row)
+//     );
+
+// }
+
+// .gutter-row {
+//   height: var(--row);
+//   border-bottom: 1px solid #f3f4f6;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   padding: 2px 8px 0 0;
+
+//   .time-label {
+//     color: #9AA2B3;
+//     font-size: 12px;
+//     width: 60px;
+//     text-align: center;
+//     position: relative;
+//     z-index: 1;
+//   }
+// }
+
+// /* Staff columns */
+// .col-body {
+//   grid-row: 2 / span 24;
+//   position: relative;
+//   border-right: 1px solid #eef2f7;
+// }
+
+// .col-bg {
+//   position: absolute;
+//   inset: 0;
+//   background:
+//     linear-gradient(
+//       to bottom,
+//       transparent calc(var(--row) - 1px),
+//       #f3f4f6 calc(var(--row) - 1px)
+//     );
+//   background-size: 100% var(--row);
+//   pointer-events: none;
+// }
+
+// .col-events {
+//   position: relative;
+//   height: calc(24 * var(--row));
+// }
+
+// /* Event card */
+// .sg-event {
+//   position: absolute;
+//   padding: 10px 12px 8px;
+//   border: 2px solid #bae6fd;
+//   border-radius: 10px;
+//   box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+//   color: #111827;
+//   overflow: hidden;
+
+//   .ev-title {
+//     font-size: 12px;
+//     font-weight: 700;
+//     margin-bottom: 6px;
+//   }
+//   .ev-meta {
+//     display: flex;
+//     align-items: center;
+//     gap: 6px;
+//     font-size: 11px;
+//     color: #475569;
+
+//     .chip {
+//       border-radius: 6px;
+//       padding: 1px 6px;
+//       background: #e0f2fe;
+//       font-weight: 700;
+//     }
+//     .dot {
+//       width: 6px;
+//       height: 6px;
+//       background: #3b82f6;
+//       border-radius: 50%;
+//       display: inline-block;
+//     }
+//   }
+// }
+
+// /* “Now” line */
+// .now-line {
+//   position: absolute;
+//   left: 0;
+//   right: 0;
+//   height: 2px;
+//   background: #FF6633; /* orange */
+//   z-index: 6;
+// }
+// .now-dot {
+//   position: absolute;
+//   right: -4px;
+//   width: 8px;
+//   height: 8px;
+//   background: #FF6633;
+//   border-radius: 50%;
+//   z-index: 7;
+// }
+
+/* ===== Variables (match mock) ===== */
+:root {
+  --gutter: 72px;                    /* time column width */
+  --col-min: 220px;                /* min staff col */
+  --rowHeight: 120px;                 /* JS passes this via inline var too */
+  --header-h: 44px;                  /* header row height */
+  --line: 1px;
+  --line-color: #eef2f7;
+}
+
+/* ===== Axis-separated scroll containers ===== */
+/* Outer: vertical-only; Inner: horizontal-only */
+.cal-viewport {
+  height: calc(100vh - 120px);
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  background: #fff;
+}
+
+.cal-canvas {
+  width: 100%;               /* allow horizontal scroll */
+  overflow-x: scroll;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+/* ===== Grid scaffold: header + 24h rows; gutter + N columns ===== */
+.grid-cal {
+  position: relative;
+  display: grid;
+  grid-template-rows: var(--header-h) repeat(96, calc(var(--rowHeight) / 4));
+  background: #fff;
+  /* sticky elements rely on these two scroll ancestors */
+}
+
+/* ===== Header cells ===== */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--header-h);
+  font-weight: 700;
+  font-size: 12px;
+  background: #fff;
+  color: #6B7A99;
+  position: sticky;                 /* sticks on vertical scroll */
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid var(--line-color);
+}
+
+.gutter-hdr {
+  grid-column: 1 / 2;
+  position: sticky;
+  top: 0;
+  left: 0;                          /* also sticks on horizontal scroll */
+  z-index: 6;
+  background: #fff;
+  border-right: 1px solid var(--line-color);
+}
+
+/* Staff headers with vertical separators like the mock */
+.staff-hdr {
+  grid-row: 1 / 2;
+  padding: 0 12px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+ color: #6B7A99;
+  /* vertical grid lines between names */
+  border-right: 1px solid var(--line-color);
+}
+
+/* ===== Time gutter ===== */
+.gutter-body {
+  grid-row: 2 / span 96;
+  grid-column: 1 / 2;
+  position: sticky;                 /* sticks on horizontal scroll */
+  left: 0;
+  z-index: 4;
+  background: #fff;
+  border-right: 1px solid var(--line-color);
+}
+
+.gutter-row {
+  height: calc(var(--rowHeight) / 4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 1px;
+    background: #f3f4f6;
+  }
+
+  .time-label {
+    color: #9aa2b3;
+    font-size: 11px;
+    font-weight: 600;
+    width: calc(var(--gutter) - 12px);
+    text-align: center;
+    z-index: 1;
+  }
+}
+
+
+/* ===== Staff columns ===== */
+.col-body {
+  grid-row: 2 / span 96;
+  position: relative;
+  border-right: 1px solid var(--line-color);
+}
+
+.col-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent calc(var(--rowHeight) / 4 - 1px),
+      #f3f4f6 calc(var(--rowHeight) / 4 - 1px)
+    );
+  background-size: 100% calc(var(--rowHeight) / 4);
+  pointer-events: none;
+}
+
+
+.col-events {
+  position: relative;
+  height: calc(24 * var(--rowHeight));
+}
+
+/* ===== “Now” line ===== */
+.now-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: #ff6633;
+  z-index: 6;
+  pointer-events: none;
+}
+.gutter-body .now-dot {
+  position: absolute;
+  left: calc(var(--gutter) - 67px);
+  width: 10px;
+  height: 10px;
+  background: #ff6633;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff;
+  z-index: 4;
+  pointer-events: none;
+
+  /* 👇 this centers it on the line as well */
+  transform: translate(-50%, -50%);
+}
+.now-dot-right {
+  position: absolute;
+  right: calc(var(--gutter) - 77px);
+  width: 10px;
+  height: 10px;
+  background: #ff6633;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fff;
+  z-index: 4;
+  pointer-events: none;
+
+  /* 👇 this centers it on the line as well */
+  transform: translate(-50%, -50%);
+}
+
+
+/* ===== Responsive tweaks (optional) ===== */
+@media (max-width: 1100px) {
+  :root { --col-min: 180px; }
+}
+@media (min-width: 1600px) {
+  :root { --col-min: 260px; }
+}
+
+
+/* -------------------------
+   Month view styles
+   ------------------------- */
+.month-view {
+  padding: 12px 16px;
+
+  .month-grid {
+    display: block;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+    overflow: hidden;
+  }
+
+  .month-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #fafbfc;
+    border-bottom: 1px solid var(--line-color);
+  }
+
+  .month-header-cell {
+    padding: 10px 8px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #6b7a99;
+    text-align: center;
+  }
+
+  .month-week-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .month-day-cell {
+    min-height: 110px;
+    padding: 8px;
+    border-right: 1px solid var(--line-color);
+    border-bottom: 1px solid var(--line-color);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #fff;
+    position: relative;
+
+    &.month-day-outside {
+      background: #fbfcfd;
+      opacity: 0.66;
+      color: #94a3b8;
+    }
+
+    .month-day-number {
+      font-weight: 700;
+      font-size: 13px;
+      color: #334155;
+      align-self: flex-start;
+    }
+
+    .month-day-events {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    .month-day-event {
+      font-size: 12px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: 1px solid rgba(59,130,246,0.08);
+      background: rgba(59,130,246,0.03);
+      cursor: pointer;
+    }
+
+    .month-more {
+      font-size: 12px;
+      color: #6b7a99;
+      cursor: pointer;
+      margin-top: auto;
+    }
+  }
+
+  /* remove right border on last column and bottom border on last row */
+  .month-week-row:last-child .month-day-cell {
+    border-bottom: 0;
+  }
+  .month-week-row .month-day-cell:nth-child(7) {
+    border-right: 0;
+  }
+
+  @media (max-width: 900px) {
+    .month-day-cell { min-height: 90px; padding: 6px; }
+  }
+}
+
+/* -------------------------
+   Week view styles
+   ------------------------- */
+.week-view {
+  /* use the same grid scaffolding as day view but with 7 columns for days */
+  /* for week view */
+.grid-week {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(7, minmax(var(--col-min), 1fr));
+  grid-template-rows: var(--header-h) repeat(96, calc(var(--rowHeight) / 4));
+  position: relative;
+  background: #fff;
+}
+
+
+  .day-hdr {
+    grid-row: 1 / 2;
+    padding: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #6b7a99;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--line-color);
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+  }
+
+  .day-hdr-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* Time gutter already styled: reuse .gutter-body / .gutter-row */
+
+  .day-col {
+    grid-row: 2 / span 24;
+    position: relative;
+    border-right: 1px solid var(--line-color);
+    min-height: calc(24 * var(--rowHeight));
+    overflow: visible;
+    background: transparent;
+
+    .col-bg { /* reuses baseline style */ }
+
+    .col-events {
+      position: relative;
+      height: calc(24 * var(--rowHeight));
+    }
+
+    /* events in week view (date-centric) */
+    .week-event {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      border-radius: 8px;
+      padding: 6px 8px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+      border: 1px solid rgba(11, 83, 148, 0.06);
+      background: linear-gradient(180deg, rgba(59,130,246,0.06), rgba(59,130,246,0.03));
+      cursor: pointer;
+      overflow: hidden;
+      z-index: 3;
+
+      .week-event-title {
+        font-weight: 700;
+        font-size: 12px;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .week-event-time {
+        font-size: 11px;
+        color: #475569;
+        margin-top: 4px;
+      }
+    }
+
+    /* small "now" indicator reuse */
+    .now-line { z-index: 6; }
+  }
+
+  /* remove the right border on the last column */
+  .day-col:nth-child(8) {
+    border-right: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .grid-week { grid-template-columns: var(--gutter) repeat(7, minmax(160px, 1fr)); }
+  }
+}
+
+/* -------------------------
+   Small helpers
+   ------------------------- */
+.month-more,
+.month-day-event,
+.week-event {
+  transition: background 120ms ease, transform 120ms ease;
+}
+.month-day-event:hover,
+.week-event:hover {
+  transform: translateY(-2px);
+  background: rgba(59,130,246,0.08);
+}

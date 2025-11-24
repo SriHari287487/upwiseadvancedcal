@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+*{
+   font-family:"Poppins", "Noto Sans", sans-serif;
+}
+html, body, #root {
+  height: 100%;
+  overflow: hidden;        /* page itself won't scroll */
+}
+
+.app-container {
+    background: #f5f6f8;
+    height: 100vh;
+    padding: 20px 10px;
+    box-sizing: border-box;
+}
+
+.mainContainer{
+  display: flex;
+  height: 100%;
+  overflow: hidden; 
+  gap: 20px;
+  background: transparents;
+}
+
+.calendar-body{
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr); /* left width | calendar grows */
+  gap: 24px;
+  min-height: 0;
+  flex: 1;
+  align-items: start;
+  overflow: hidden;
+  padding: 10px;
+}
+
+
+
+.checkbox-group label {
+  display: block;
+  margin: 5px 0;
+}
+
+.mini-calendar {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  padding: 10px;
+  
+}
+
+
+
+.filters-section h4 {
+  margin: 10px 0 5px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mini-cal-wrapper { display: flex; flex-direction: column; gap: 8px; }
+.btn-new-meeting {
+  padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb;
+  background:#0ea5e9; color:#fff; font-weight:600; cursor:pointer;
+}
+.btn-new-meeting:hover { filter: brightness(1.05); }
+
+.calendar-shell{
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;       /* delegate scrolling to the grid */
+}
+
+/* Let the grid widget fill the shell completely */
+.calendar-shell .grid-cal{
+  height: 99%;
+  width: 99%;
+  overflow: auto;         /* vertical + horizontal scroll lives here */
+}
