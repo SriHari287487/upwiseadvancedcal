@@ -5,7 +5,7 @@
   "homepage": "./",
   "scripts": {
     "start": "react-scripts start",
-    "build": "cross-env GENERATE_SOURCEMAP=false craco build && rimraf app && mkdir app && xcopy /E /I build\\ app && rimraf build"
+    "build": "cross-env GENERATE_SOURCEMAP=false craco build && rimraf app && mkdir app && cp -R build/. app/ && rimraf build"
   },
   "dependencies": {
     "@craco/craco": "^7.1.0",
@@ -65,7 +65,6 @@
     "css-loader": "^7.1.2",
     "del-cli": "^5.1.0",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "html-webpack-plugin": "^5.6.0",
     "rimraf": "^6.0.1",
     "sass": "^1.93.3",
     "style-loader": "^4.0.0",

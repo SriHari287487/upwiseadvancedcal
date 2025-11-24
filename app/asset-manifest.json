@@ -1,16 +1,15 @@
 {
   "files": {
     "main.css": "./static/css/main.275b52cc.css",
-    "main.js": "./static/js/main.7bc1b355.js",
+    "main.js": "./static/js/main.6d5ed0f3.js",
     "static/media/instrument-sans-latin-400-normal.woff": "./static/media/instrument-sans-latin-400-normal.96bc6cbd843628e3ae48.woff",
     "static/media/instrument-sans-latin-400-normal.woff2": "./static/media/instrument-sans-latin-400-normal.e6aa1b8471a95ead1d2f.woff2",
     "static/media/instrument-sans-latin-ext-400-normal.woff": "./static/media/instrument-sans-latin-ext-400-normal.fdee5139003c9dcbc399.woff",
     "static/media/instrument-sans-latin-ext-400-normal.woff2": "./static/media/instrument-sans-latin-ext-400-normal.7d6f64fd11a42d9dca07.woff2",
-    "static/media/default_index.ejs": "./static/media/default_index.1850f81369484a289845.ejs",
     "index.html": "./index.html"
   },
   "entrypoints": [
     "static/css/main.275b52cc.css",
-    "static/js/main.7bc1b355.js"
+    "static/js/main.6d5ed0f3.js"
   ]
 }
