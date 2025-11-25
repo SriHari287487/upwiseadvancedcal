@@ -42,6 +42,8 @@ import {
   searchRecords,
   updateRecord,
   getRecord,
+  getBusinessHours,
+  isWithinBusinessHours,
 } from "../../Apis/zohoApi";
 
 /* ---------------- Reusables ---------------- */
@@ -790,6 +792,26 @@ export default function MeetingSchedulerMUI() {
       time: false,
       repeat: false,
     });
+
+    // ----- CHECK BUSINESS HOURS -----
+    if (!allDay) {
+      try {
+        const businessHours = await getBusinessHours();
+        
+        if (businessHours.enabled) {
+          const isValid = isWithinBusinessHours(startDateTime, endDateTime, businessHours);
+          
+          if (!isValid) {
+            toast.error("⏰ Sorry, this event is outside business hours. Please schedule within business hours.");
+            setSubmitting(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking business hours:", err);
+        // Continue anyway if business hours check fails
+      }
+    }
 
     // ----- API LOGIC -----
     setSubmitting(true);
