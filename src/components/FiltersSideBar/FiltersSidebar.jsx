@@ -257,32 +257,38 @@ const FiltersSidebar = ({ open, onclose }) => {
     roles,
     hosts,
     userGroups,
+    showrooms,
     selectedRoleNames,
     selectedUserNames,
     selectedGroupIds,
+    selectedShowrooms,
   } = useCalendarState();
   const {
     setSelectedRoleNames,
     setSelectedUserNames,
     setSelectedGroupIds,
+    setSelectedShowrooms,
   } = useCalendarActions();
 
   const [collapsed, setCollapsed] = useState({
     roles: false,
     individuals: false,
     groups: false,
+    showrooms: false,
   });
 
   const [searchOpen, setSearchOpen] = useState({
     roles: false,
     individuals: false,
     groups: false,
+    showrooms: false,
   });
 
   const [query, setQuery] = useState({
     roles: "",
     individuals: "",
     groups: "",
+    showrooms: "",
   });
 
   const toggleCollapse = (key) =>
@@ -357,10 +363,29 @@ const FiltersSidebar = ({ open, onclose }) => {
     [setSelectedGroupIds, setSelectedRoleNames, setSelectedUserNames]
   );
 
+    const filteredShowrooms = useMemo(() => {
+    const arr = Array.isArray(showrooms) ? showrooms : [];
+    const q = query.showrooms.trim().toLowerCase();
+    if (!q) return arr;
+    return arr.filter((s) =>
+      String(s.label || "").toLowerCase().includes(q)
+    );
+  }, [showrooms, query.showrooms]);
+
+  const handleShowroomFilterChange = useCallback(
+    (idsArray) => {
+      const next = idsArray || [];
+      setSelectedShowrooms(next);
+      // if you want mutual-exclusion with others, you can also clear role/user/group here
+    },
+    [setSelectedShowrooms]
+  );
+
   // active filter count
   const activeCount =
     (selectedRoleNames?.length || 0) +
     (selectedUserNames?.length || 0) +
+    (selectedShowrooms?.length || 0) +
     (selectedGroupIds?.length || 0);
 
   const hasActiveFilters = activeCount > 0;
@@ -369,6 +394,7 @@ const FiltersSidebar = ({ open, onclose }) => {
     setSelectedRoleNames([]);
     setSelectedUserNames([]);
     setSelectedGroupIds([]);
+    setSelectedShowrooms([]);
   };
 
   return (
@@ -466,6 +492,25 @@ const FiltersSidebar = ({ open, onclose }) => {
                 onChange={handleGroupFilterChange}
                 getLabel={(g) => g.name}
                 getValue={(g) => g.id}
+              />
+            </Section>
+
+            <Section
+              title="Showrooms"
+              collapsed={collapsed.showrooms}
+              onToggle={() => toggleCollapse("showrooms")}
+              searchOpen={searchOpen.showrooms}
+              onToggleSearch={() => toggleSearch("showrooms")}
+              searchValue={query.showrooms}
+              onSearchChange={(v) => setQueryKey("showrooms", v)}
+              onClearSearch={() => clearQueryKey("showrooms")}
+            >
+              <CheckboxGroup
+                items={filteredShowrooms}
+                selected={selectedShowrooms}
+                onChange={handleShowroomFilterChange}
+                getLabel={(s) => s.label}
+                getValue={(s) => s.id}
               />
             </Section>
           </Box>
