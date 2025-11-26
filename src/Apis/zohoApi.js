@@ -521,4 +521,85 @@ export async function fetchShowrooms() {
   }
 }
 
+export async function getBusinessHours() {
+  try {
+    const conn_name = "zohoadvancecalendar";
+    const api_domain = "https://www.zohoapis.com";
+    const url = `${api_domain}/crm/v8/settings/business_hours`;
 
+    const resp = await ZOHO.CRM.CONNECTION.invoke(conn_name, { 
+      method: "GET", 
+      url 
+    });
+
+    const bh =
+      resp?.details?.statusMessage?.business_hours ||
+      resp?.details?.statusMessage?.data ||
+      resp?.details?.statusMessage ||
+      resp?.business_hours ||
+      null;
+
+    if (!bh) {
+      // Return default business hours if API doesn't return data
+      return {
+        enabled: true,
+        timezone: "UTC",
+        days: {
+          Monday: { start_time: "09:00", end_time: "17:00" },
+          Tuesday: { start_time: "09:00", end_time: "17:00" },
+          Wednesday: { start_time: "09:00", end_time: "17:00" },
+          Thursday: { start_time: "09:00", end_time: "17:00" },
+          Friday: { start_time: "09:00", end_time: "17:00" },
+          Saturday: { start_time: "00:00", end_time: "00:00" },
+          Sunday: { start_time: "00:00", end_time: "00:00" },
+        },
+      };
+    }
+
+    const days = {};
+    const rawDays = bh.business_days || bh.businessDays || bh.days || bh;
+
+    if (Array.isArray(rawDays)) {
+      for (const d of rawDays) {
+        const name = (d.day || d.name || "").toString();
+        if (!name) continue;
+        const key = name[0] + name.slice(1).toLowerCase();
+        days[key] = {
+          start_time: d.start_time || d.start || d.open_time || "00:00",
+          end_time: d.end_time || d.end || d.close_time || "23:59",
+        };
+      }
+    } else if (rawDays && typeof rawDays === "object") {
+      for (const k of Object.keys(rawDays)) {
+        const entry = rawDays[k] || {};
+        const key = k[0] + k.slice(1).toLowerCase();
+        days[key] = {
+          start_time: entry.start_time || entry.start || entry.open_time || "00:00",
+          end_time: entry.end_time || entry.end || entry.close_time || "23:59",
+        };
+      }
+    }
+
+    return {
+      enabled: !!bh.enabled,
+      timezone: bh.timezone || bh.time_zone || "UTC",
+      days,
+    };
+  } catch (err) {
+    console.warn("Could not fetch business hours from API, using defaults", err);
+    // Return safe defaults: 9 AM - 6 PM on weekdays, closed on weekends
+    return {
+      enabled: true,
+      timezone: "UTC",
+      days: {
+        Monday: { start_time: "09:00", end_time: "17:00" },
+        Tuesday: { start_time: "09:00", end_time: "17:00" },
+        Wednesday: { start_time: "09:00", end_time: "17:00" },
+        Thursday: { start_time: "09:00", end_time: "17:00" },
+        Friday: { start_time: "09:00", end_time: "17:00" },
+        Saturday: { start_time: "00:00", end_time: "00:00" },
+        Sunday: { start_time: "00:00", end_time: "00:00" },
+      },
+    };
+  }
+}
