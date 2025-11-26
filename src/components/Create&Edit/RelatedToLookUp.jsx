@@ -34,6 +34,14 @@ import {
 const soft = "#9AA2B3";
 const PER_PAGE = 30;
 
+// Define specific columns to display for each allowed related module
+const COLUMN_CONFIG = {
+  Leads: ["Full_Name",, "Email", "Phone","City", "Lead_Status", "Industry","Showroom"],
+  Contacts: [ "Full_Name","Email", "Mobile", "Mailing_City" ],
+  Accounts: [ "Account_Name", "Phone","Primary_Contact_Email",  "Billing_City"],
+  Deals: ["Deal_Name", "Stage", "Contact_Mobile", "Contact_Name","City1","Showroom"],
+};
+
 function formatCell(v) {
   if (v == null) return "";
   if (typeof v === "object") {
@@ -61,7 +69,9 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
   const [totalPages, setTotalPages] = useState(1);
 
   const [moduleFields, setModuleFields] = useState([]);
-  const [visibleCols, setVisibleCols] = useState([]);
+  // store visible columns per-module so switching modules restores module-specific choices
+  const [visibleColsMap, setVisibleColsMap] = useState({});
+  const visibleCols = useMemo(() => visibleColsMap[relatedTo] || [], [visibleColsMap, relatedTo]);
 
   const [showFilters, setShowFilters] = useState(false);
   const [colFilters, setColFilters] = useState({});
@@ -130,6 +140,8 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
 
       // 2) fields for module
       const fields = await getFieldsMeta(relatedTo);
+      console.log(fields,"fields");
+      
       const normalized =
         (fields || []).map((f) => ({
           api_name: f.api_name,
@@ -139,15 +151,32 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
       if (!cancelled) {
         setModuleFields(normalized);
 
-        // initialize / repair visible columns
-        if (!visibleCols.length) {
-          setVisibleCols(normalized.slice(0, 7).map((f) => f.api_name));
+        // initialize / repair visible columns based on module-specific config
+        const allowedFieldNames = new Set(normalized.map((f) => f.api_name));
+        let defaultCols = [];
+
+        // Get configured columns for this module, filtering to only available fields
+        const configuredCols = COLUMN_CONFIG[relatedTo] || [];
+        const validConfiguredCols = configuredCols.filter((col) =>
+          allowedFieldNames.has(col)
+        );
+
+        // Use configured columns if available, otherwise fall back to first 7 fields
+        if (validConfiguredCols.length > 0) {
+          defaultCols = validConfiguredCols;
         } else {
-          const allowed = new Set(normalized.map((f) => f.api_name));
-          const next = visibleCols.filter((c) => allowed.has(c));
-          setVisibleCols(
-            next.length ? next : normalized.slice(0, 7).map((f) => f.api_name)
-          );
+          defaultCols = normalized.slice(0, 7).map((f) => f.api_name);
+        }
+
+        // Initialize or repair visible columns for this module specifically
+        const existing = visibleColsMap[relatedTo];
+        if (!existing || existing.length === 0) {
+          // No saved config for this module — set defaults
+          setVisibleColsMap((m) => ({ ...m, [relatedTo]: defaultCols }));
+        } else {
+          // Repair existing columns: filter to available fields only
+          const next = existing.filter((c) => allowedFieldNames.has(c));
+          setVisibleColsMap((m) => ({ ...m, [relatedTo]: next.length ? next : defaultCols }));
         }
         // DO NOT reset colFilters here, so filter inputs are preserved
       }
@@ -157,7 +186,7 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
     return () => {
       cancelled = true;
     };
-  }, [open, relatedTo, page]);
+  }, [open, relatedTo, page, visibleColsMap]);
 
   /* ---------------------------
      Column / filter helpers
@@ -167,13 +196,28 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
     [moduleList]
   );
 
-  const allowedRelateds = ["Leads", "Contacts", "Accounts", "Deals"];
-  console.log("filteredModules",filteredModules)
+  const allowedRelateds = Object.keys(COLUMN_CONFIG);
 
-  const columnDefs = useMemo(
-    () => moduleFields.filter((f) => visibleCols.includes(f.api_name)),
-    [moduleFields, visibleCols]
-  );
+  // order modules in the dropdown according to the order of keys in COLUMN_CONFIG
+  const orderedModules = useMemo(() => {
+    if (!filteredModules.length) return [{ api_name: "", singular_label: "No results" }];
+    const list = allowedRelateds
+      .map((name) => filteredModules.find((m) => m.api_name === name))
+      .filter(Boolean);
+    return list.length > 0 ? list : [{ api_name: "", singular_label: "No results" }];
+  }, [filteredModules, allowedRelateds]);
+
+  const columnDefs = useMemo(() => {
+    // Ensure the displayed columns follow the order in `visibleCols` (which is
+    // derived from COLUMN_CONFIG order). If visibleCols is empty or none match,
+    // fall back to a reasonable default from moduleFields.
+    if (!visibleCols || visibleCols.length === 0) return moduleFields.slice(0, 7);
+
+    const fieldByApi = new Map(moduleFields.map((f) => [f.api_name, f]));
+    const ordered = visibleCols.map((api) => fieldByApi.get(api)).filter(Boolean);
+
+    return ordered.length ? ordered : moduleFields.slice(0, 7);
+  }, [moduleFields, visibleCols]);
 
   // client-side column filters on current page
   const displayRows = useMemo(() => {
@@ -190,11 +234,13 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
   }, [records, colFilters]);
 
   const toggleFieldVisible = (apiName) => {
-    setVisibleCols((prev) =>
-      prev.includes(apiName)
-        ? prev.filter((x) => x !== apiName)
-        : [...prev, apiName]
-    );
+    setVisibleColsMap((prev) => {
+      const prevCols = prev[relatedTo] || [];
+      const next = prevCols.includes(apiName)
+        ? prevCols.filter((x) => x !== apiName)
+        : [...prevCols, apiName];
+      return { ...prev, [relatedTo]: next };
+    });
   };
 
   /* ---------------------------
@@ -329,10 +375,7 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
               return item.label || item.secondary_label || item.singular_label;
             }}
           >
-            {(filteredModules.length > 0
-              ? filteredModules
-              : [{ api_name: "", singular_label: "No results" }]
-            ).filter((m) => allowedRelateds.includes(m.api_name)).map((m, idx) => (
+            {orderedModules.map((m, idx) => (
               <MenuItem
                 key={m.api_name || `empty-${idx}`}
                 value={m.api_name}
