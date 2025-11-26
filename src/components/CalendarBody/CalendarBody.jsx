@@ -12,7 +12,7 @@ import {
 /* ---------- Local hook for current time position ---------- */
 function useNowTopLocal(rowHeight) {
   const computeTop = () => {
-    const now = toCST(new Date());
+    const now = toLocalTZ(new Date());
     const minutes =
       now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
     // rowHeight is pixels per hour, so 60 minutes = 1 row
@@ -31,14 +31,17 @@ function useNowTopLocal(rowHeight) {
   return nowTop;
 }
 import { parseToMinutes, prioritizeTeam } from "../../Helper/HelperFunction";
+import { getBusinessHours } from "../../Apis/zohoApi";
+import { toast } from "react-toastify";
 import { FiClock } from "react-icons/fi";
 import MeetingSchedulerMUI from "../Create&Edit/CreateMeetingModal";
 import { Avatar } from "@mui/material";
 
-// Force all dates to CST
-function toCST(date) {
+// Convert date into the system (client) timezone. Uses the browser's detected timezone.
+function toLocalTZ(date) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   return new Date(
-    new Date(date).toLocaleString("en-US", { timeZone: "America/Chicago" })
+    new Date(date).toLocaleString("en-US", { timeZone: tz })
   );
 }
 
@@ -261,7 +264,20 @@ function WeekView({ state, actions }) {
   const innerXRef = useRef(null);
   const gridRef = useRef(null);
   const nowTop = useNowTopLocal(rowHeight);
+  const [businessHours, setBusinessHours] = useState(null);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const bh = await getBusinessHours();
+        if (mounted) setBusinessHours(bh);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => (mounted = false);
+  }, []);
   const handleDayClick = useCallback(
     (e, day) => {
       const rect = e.currentTarget.getBoundingClientRect();
@@ -273,7 +289,7 @@ function WeekView({ state, actions }) {
         DAY_MIN - 15
       );
 
-      const baseDate = toCST(day);
+      const baseDate = toLocalTZ(day);
       baseDate.setHours(0, 0, 0, 0);
       const startDateTime = new Date(
         baseDate.getTime() + snappedStartMinutes * 60 * 1000
@@ -367,8 +383,8 @@ function WeekView({ state, actions }) {
                 <div className="col-events">
                   <div className="now-line" style={{ top: nowTop }} />
                   {dayEvents.map((ev) => {
-                    const start = toCST(ev.start);
-                    const end = toCST(ev.end || ev.start);
+                    const start = toLocalTZ(ev.start);
+                    const end = toLocalTZ(ev.end || ev.start);
                     const startMin = clamp(minutesLocal(start), 0, DAY_MIN);
                     const endMin = clamp(minutesLocal(end), 0, DAY_MIN);
                     if (endMin <= startMin) return null;
@@ -403,6 +419,45 @@ function WeekView({ state, actions }) {
                       </div>
                     );
                   })}
+                  {/* blocked overlays for out-of-business hours (week view) */}
+                  {businessHours && businessHours.enabled && (
+                    (() => {
+                      const dayName = days[i].toLocaleDateString(undefined, { weekday: 'long' });
+                      const cfg = businessHours.days?.[dayName];
+                      if (!cfg) return null;
+                      const parseTime = (s) => {
+                        const [hh, mm] = (s || '00:00').split(':').map(Number);
+                        return hh * 60 + (mm || 0);
+                      };
+                      const startMin = parseTime(cfg.start_time);
+                      const endMin = parseTime(cfg.end_time);
+                      const beforeH = (startMin / 60) * rowHeight;
+                      const afterH = ((24 * 60 - endMin) / 60) * rowHeight;
+
+                      return (
+                        <>
+                          {startMin > 0 && (
+                            <div
+                              className="blocked-area"
+                              style={{ position: 'absolute', left: 0, right: 0, top: 0, height: beforeH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
+                              onClick={(e)=>{ e.stopPropagation(); 
+                                // toast.info('Outside business hours'); 
+                              }}
+                            />
+                          )}
+                          {endMin < 24*60 && (
+                            <div
+                              className="blocked-area"
+                              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: afterH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
+                              onClick={(e)=>{ e.stopPropagation(); 
+                                // toast.info('Outside business hours'); 
+                              }}
+                            />
+                          )}
+                        </>
+                      );
+                    })()
+                  )}
                 </div>
               </div>
             );
@@ -569,6 +624,20 @@ function DayView({ state, actions }) {
   const innerXRef = useRef(null);
   const gridRef = useRef(null);
   const nowTop = useNowTopLocal(rowHeight);
+  const [businessHours, setBusinessHours] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const bh = await getBusinessHours();
+        if (mounted) setBusinessHours(bh);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => (mounted = false);
+  }, []);
 
   const minutesLocal = (d) => {
     const dt = typeof d === "string" ? new Date(d) : d;
@@ -593,7 +662,7 @@ function DayView({ state, actions }) {
 
       const snappedEndMinutes = snappedStartMinutes + 15;
 
-      const baseDate = selectedDate ? toCST(selectedDate) : toCST(new Date());
+      const baseDate = selectedDate ? toLocalTZ(selectedDate) : toLocalTZ(new Date());
       baseDate.setHours(0, 0, 0, 0);
 
       const startDateTime = new Date(
@@ -691,6 +760,9 @@ function DayView({ state, actions }) {
               layoutLanes(evs, parseToMinutes).map((x) => [x.id, x])
             );
 
+            const dayName = (selectedDate ? toLocalTZ(selectedDate) : toLocalTZ(new Date())).toLocaleDateString(undefined, { weekday: 'long' });
+            const cfg = businessHours?.days?.[dayName];
+
             return (
               <div
                 key={m.id}
@@ -704,9 +776,45 @@ function DayView({ state, actions }) {
                   {i === team.length - 1 && (
                     <div className="now-dot-right" style={{ top: nowTop }} />
                   )}
+                    {/* blocked overlays for out-of-business hours (day view per-column) */}
+                    {businessHours && businessHours.enabled && cfg && (
+                      (() => {
+                        const parseTime = (s) => {
+                          const [hh, mm] = (s || '00:00').split(':').map(Number);
+                          return hh * 60 + (mm || 0);
+                        };
+                        const startMin = parseTime(cfg.start_time);
+                        const endMin = parseTime(cfg.end_time);
+                        const beforeH = (startMin / 60) * rowHeight;
+                        const afterH = ((24 * 60 - endMin) / 60) * rowHeight;
+
+                        return (
+                          <>
+                            {startMin > 0 && (
+                              <div
+                                className="blocked-area"
+                                style={{ position: 'absolute', left: 0, right: 0, top: 0, height: beforeH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
+                                onClick={(e)=>{ e.stopPropagation(); 
+                                  // toast.info('Outside business hours'); 
+                                }}
+                              />
+                            )}
+                            {endMin < 24*60 && (
+                              <div
+                                className="blocked-area"
+                                style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: afterH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
+                                onClick={(e)=>{ e.stopPropagation(); 
+                                  // toast.info('Outside business hours'); 
+                                }}
+                              />
+                            )}
+                          </>
+                        );
+                      })()
+                    )}
                   {evs.map((ev) => {
-  const startDateObj = toCST(ev.start);
-  const endDateObj = toCST(ev.end || ev.start);
+  const startDateObj = toLocalTZ(ev.start);
+  const endDateObj = toLocalTZ(ev.end || ev.start);
 
 
                     const durationMs = endDateObj - startDateObj;
