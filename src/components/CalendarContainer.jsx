@@ -6,10 +6,12 @@ import { Box } from "@mui/material";
 import SideBar from "./SideBar/SideBar";
 import Calendar from "./Calendar/calendar.jsx";
 import '../styles/styles.css';
+import { fetchShowrooms } from '../Apis/zohoApi';
+
 
 export default function CalendarContainer() {
   const { selectedDate } = useCalendarState();
-  const { fetchStart, fetchSuccess, fetchError, setHosts, setRoles, setUserGroups } = useCalendarActions();
+  const { fetchStart, fetchSuccess, fetchError, setHosts, setRoles, setUserGroups, setShowrooms, setSelectedShowrooms } = useCalendarActions();
  
   // Initial bootstrap: users, groups, initial records (today)
   const initAndFetch = useCallback(async () => {
@@ -20,20 +22,22 @@ export default function CalendarContainer() {
       const normalized = normalizeZohoUsers(usersResp);
       const normalizedHosts = normalized?.hosts || [];
       const normalizedRoles = normalized?.roles || [];
+      const showroomData = await fetchShowrooms();
+      setShowrooms(showroomData);
       setHosts(normalizedHosts);
       setRoles(normalizedRoles);
       
       const groups = await getUserGroups();
       // console.log('fetched groups', groups);
       setUserGroups(groups || []);
-getFields()
+      getFields()
       // Initial records: today
       const initialRecords = await searchRecords(new Date());
       fetchSuccess(Array.isArray(initialRecords) ? initialRecords : []);
     } catch (err) {
       fetchError(err?.message || "Failed to initialize calendar");
     }
-  }, [fetchStart, fetchSuccess, fetchError, setHosts, setRoles, setUserGroups]); 
+  }, [fetchStart, fetchSuccess, fetchError, setHosts, setRoles, setShowrooms, setUserGroups]); 
 
   // Zoho embedded init + first fetch (only once)
   useEffect(() => {

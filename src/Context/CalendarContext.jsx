@@ -107,6 +107,8 @@ const A = {
   SET_SELECTED_USER_NAMES: "SET_SELECTED_USER_NAMES",
   SET_SELECTED_GROUP_IDS: "SET_SELECTED_GROUP_IDS",
   SET_MODULE_LIST: "SET_MODULE_LIST",
+  SET_SHOWROOMS: "SET_SHOWROOMS",
+  SET_SELECTED_SHOWROOMS: "SET_SELECTED_SHOWROOMS",
 
   // modals
   OPEN_CREATE: "OPEN_CREATE",
@@ -196,6 +198,18 @@ function reducer(state, action) {
     case A.SET_MODULE_LIST:
       return { ...state, moduleList: Array.isArray(action.payload) ? action.payload : [] };
 
+    case A.SET_SHOWROOMS:
+      return {
+        ...state,
+        showrooms: Array.isArray(action.payload) ? action.payload : [],
+      };
+
+    case A.SET_SELECTED_SHOWROOMS:
+      return {
+        ...state,
+        selectedShowrooms: Array.isArray(action.payload) ? action.payload : [],
+      };
+      
     /* modal: create / edit */
     case A.OPEN_CREATE: {
   const seed = action.payload || {};
@@ -371,8 +385,10 @@ export function CalendarProvider({ children }) {
   const setHosts = useCallback((xs) => dispatch({ type: A.SET_HOSTS, payload: xs }), []);
   const setRoles = useCallback((xs) => dispatch({ type: A.SET_ROLES, payload: xs }), []);
   const setUserGroups = useCallback((xs) => dispatch({ type: A.SET_USER_GROUPS, payload: xs }), []);
+  const setShowrooms = useCallback((xs) => dispatch({type: A.SET_SHOWROOMS, payload: xs}), []);
   const setSelectedRoleNames = useCallback((xs) => dispatch({ type: A.SET_SELECTED_ROLE_NAMES, payload: xs }), []);
   const setSelectedUserNames = useCallback((xs) => dispatch({ type: A.SET_SELECTED_USER_NAMES, payload: xs }), []);
+  const setSelectedShowrooms = useCallback((xs) => dispatch({ type: A.SET_SELECTED_SHOWROOMS, payload: xs }), []);
   const setModuleList = useCallback((list) => dispatch({ type: A.SET_MODULE_LIST, payload: list }), []);
   const setSelectedGroupIds = useCallback((xs) => dispatch({ type: A.SET_SELECTED_GROUP_IDS, payload: xs }), []);
   // modals
@@ -427,7 +443,7 @@ export function CalendarProvider({ children }) {
       setSelectedDate, goToToday, goToPreviousDay, goToNextDay,
       fetchStart, fetchSuccess, fetchError,
       // meta
-      setHosts, setRoles, setUserGroups, setSelectedRoleNames, setSelectedUserNames, setSelectedGroupIds, setModuleList,
+      setHosts, setRoles, setUserGroups, setShowrooms, setSelectedRoleNames, setSelectedUserNames, setSelectedShowrooms, setSelectedGroupIds, setModuleList,
       // modals
       openCreate, openEdit, closeModal,
       // form
@@ -443,7 +459,7 @@ export function CalendarProvider({ children }) {
     [
       setSelectedDate, goToToday, goToPreviousDay, goToNextDay,
       fetchStart, fetchSuccess, fetchError,
-      setHosts, setRoles, setUserGroups, setSelectedRoleNames, setSelectedUserNames, setSelectedGroupIds,setModuleList,
+      setHosts, setRoles, setUserGroups, setShowrooms, setSelectedRoleNames, setSelectedUserNames, setSelectedShowrooms, setSelectedGroupIds,setModuleList,
       openCreate, openEdit, closeModal,
       resetMeetingForm, patchMeetingForm, setParticipants,
       openParticipants, closeParticipants,

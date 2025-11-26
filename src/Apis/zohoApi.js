@@ -502,3 +502,23 @@ export async function getModuleList() {
   }
 }
 
+export async function fetchShowrooms() {
+  try {
+    const response = await ZOHO.CRM.API.getAllRecords({
+      Entity: "Showrooms",      // adjust to your module API name
+      sort_order: "asc",
+      per_page: 200,
+    });
+    const records = Array.isArray(response?.data) ? response.data : [];
+    return records.map((r) => ({
+      id: r.id,
+      label: r.Name,            // adjust if your showroom name field is different
+      value: r.id,
+    }));
+  } catch (err) {
+    console.error("Error fetching showrooms", err);
+    return [];
+  }
+}
+
+
