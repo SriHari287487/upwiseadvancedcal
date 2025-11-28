@@ -140,7 +140,7 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
 
       // 2) fields for module
       const fields = await getFieldsMeta(relatedTo);
-      console.log(fields,"fields");
+      // console.log(fields,"fields");
       
       const normalized =
         (fields || []).map((f) => ({
@@ -300,7 +300,17 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
   const toggleCheck = (row) => {
     const id = row.id || row.ID || row._id;
     setCheckedId(id);
-    if (onSelect) onSelect(row);
+    // if (onSelect) onSelect(row);
+    if (onSelect) {
+      console.log("row", row)
+    // Pass COMPLETE row data including module
+    onSelect({
+      id,
+      name: row.FullName || row.Full_Name || row.fullname || row.full_name || row.Name || row.name || row.AccountName?.name || row.Account_Name || row.AccountName || row.Company || row.DealName || row.Deal_Name || row.Subject,
+      module: relatedTo,  // ← DYNAMIC MODULE (Leads/Contacts/Accounts/Deals)
+      raw: row  // Full row for debugging
+    });
+  }
   };
 
   /* ---------------------------

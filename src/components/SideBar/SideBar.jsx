@@ -289,7 +289,7 @@ const SideBar = () => {
       : ["#6db744", "#b83535", "#e0b917", "#7f469b", "#3474ba"];
 
   const ALL_COLOR = "#b83535";
-  console.log(normalizedTypes);
+  // console.log(normalizedTypes);
   
 
   return (

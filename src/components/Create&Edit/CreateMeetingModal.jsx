@@ -42,6 +42,11 @@ import {
   searchRecords,
   updateRecord,
   getRecord,
+  getContactAddress,
+  getShowroomAddressFromUser,
+  getDealAddress,
+  getAccountAddress,
+  getLeadAddress,
 } from "../../Apis/zohoApi";
 
 /* ---------------- Reusables ---------------- */
@@ -690,6 +695,83 @@ export default function MeetingSchedulerMUI() {
     selectedDate,
   ]);
 
+React.useEffect(() => {
+  if (!isCreateOpen || modalMode !== 'create') return;
+  
+  console.log('🔍 Venue check:', { 
+    venue: meetingVenue, 
+    contactId: relatedRecord?.id, 
+    module: relatedRecord?.module
+  });
+
+  if (typeof meetingVenue === 'string' && 
+      meetingVenue.trim().toLowerCase() === 'client location') {
+    
+    const shouldClear = !relatedRecord?.id || 
+                        !relatedRecord?.raw || 
+                        !relatedRecord?.module;
+    
+    if (shouldClear && location) {
+      console.log('🧹 Clearing location (no selection/module)');
+      patchMeetingForm({ location: '' });
+      return;
+    }
+    
+    if (relatedRecord?.raw && relatedRecord?.module) {
+      const row = relatedRecord.raw;
+      let address = '';
+
+      switch (relatedRecord.module) {
+        case 'Leads':
+          address = row.Street || row.City || '';
+          break;
+        case 'Accounts':
+          const accountCity = row.Billing_City || '';
+          const accountState = row.Billing_State || '';
+          const accountStreet = row.Billing_Street || '';
+          const cityState = accountCity && accountState ? `${accountCity}, ${accountState}` : accountCity || accountState || '';
+          address = [accountStreet, cityState].filter(Boolean).join(', ');
+          break;
+        case 'Contacts':
+          const contactCity = row.Mailing_City || '';
+          const contactState = row.Mailing_State || '';
+          const contactStreet = row.Mailing_Street || '';
+          const contactCityState = contactCity && contactState ? `${contactCity}, ${contactState}` : contactCity || contactState || '';
+          address = [contactStreet, contactCityState].filter(Boolean).join(', ');
+          break;
+        case 'Deals':
+          address = row.Street || row.Street_Address || row.City1 || '';
+          break;
+        default:
+          address = '';
+      }
+
+      console.log(`✅ ${relatedRecord.module}:`, address || 'EMPTY');
+
+      if (address) {
+        if (location !== address) {
+          console.log('🎯 Auto-filling:', address);
+          patchMeetingForm({ location: address });
+        }
+      } else if (location) {
+        // CLEAR location if address is empty but location has old value
+        console.log('🧹 Clearing location (empty address)');
+        patchMeetingForm({ location: '' });
+      }
+    }
+  }
+  // IN-OFFICE logic...
+  else if (typeof meetingVenue === 'string' && 
+           meetingVenue.toLowerCase().includes('in-office') && host?.id) {
+    // ... showroom logic
+  }
+  // CLEAR for other venues
+  else if (location) {
+    console.log('🧹 Clearing location (venue change)');
+    patchMeetingForm({ location: '' });
+  }
+}, [meetingVenue, relatedRecord?.id, relatedRecord?.module, relatedRecord?.raw, host?.id, location, patchMeetingForm, isCreateOpen, modalMode]);
+
   const appointmentTypeLabel = React.useMemo(() => {
     if (!appointmentType) return "";
     const found = apptTypeOptions.find((opt) =>
@@ -958,34 +1040,55 @@ export default function MeetingSchedulerMUI() {
   };
 
   /* Related To select */
+  // const handleRelatedSelect = React.useCallback(
+  //   (row) => {
+  //     if (!row) {
+  //       setOpenOppModal(false);
+  //       return;
+  //     }
+
+  //     const id = row.id || row.ID || row._id;
+
+  //     const name =
+  //       row.Full_Name ||
+  //       row.full_name ||
+  //       row.Name ||
+  //       row.name ||
+  //       row.Account_Name?.name ||
+  //       row.Account_Name ||
+  //       row.Company ||
+  //       row.Deal_Name ||
+  //       row.Subject ||
+  //       "";
+
+  //     patchMeetingForm({
+  //       relatedRecord: { id, name },
+  //     });
+
+  //     setOpenOppModal(false);
+  //   },
+  //   [patchMeetingForm]
+  // );
   const handleRelatedSelect = React.useCallback(
-    (row) => {
-      if (!row) {
-        setOpenOppModal(false);
-        return;
-      }
-
-      const id = row.id || row.ID || row._id;
-
-      const name =
-        row.Full_Name ||
-        row.full_name ||
-        row.Name ||
-        row.name ||
-        row.Account_Name?.name ||
-        row.Company ||
-        row.Deal_Name ||
-        row.Subject ||
-        "";
-
-      patchMeetingForm({
-        relatedRecord: { id, name },
-      });
-
+  (selected) => {  // renamed from 'row' for clarity
+    if (!selected) {
       setOpenOppModal(false);
-    },
-    [patchMeetingForm]
-  );
+      return;
+    }
+
+    console.log('📋 Selected:', selected); // DEBUG
+
+    const { id, name, module, raw } = selected;  // ← EXTRACT MODULE!
+
+    patchMeetingForm({
+      relatedRecord: { id, name, module, raw }  // ← STORE MODULE!
+    });
+
+    setOpenOppModal(false);
+  },
+  [patchMeetingForm]
+);
+
   const meetingVenueLabel =
     meetingVenueOptions.find((opt) => opt.value === meetingVenue)?.label ||
     meetingVenue ||
