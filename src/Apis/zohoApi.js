@@ -603,3 +603,200 @@ export async function getBusinessHours() {
     };
   }
 }
+
+// Add null checks before accessing [0]
+// export const getContactAddress = async (contactId, module) => {
+//   try {
+//     if (typeof ZOHO === 'undefined' || !ZOHO.CRM || !ZOHO.CRM.CONNECTION) {
+//       console.error('Zoho SDK not available');
+//       return '';
+//     }
+
+//     const conn_name = "zohoadvancecalendar";
+//     const api_domain = "https://www.zohoapis.com";
+//     const url = `${api_domain}/crm/v2/${module}/${contactId}`;
+    
+//     const response = await ZOHO.CRM.CONNECTION.invoke(conn_name, { 
+//       method: "GET", 
+//       url 
+//     });
+    
+//     console.log('Raw Zoho response:', response);
+
+//     // Extract data from response (handles your structure)
+//     const data = response?.details?.statusMessage?.data?.[0];
+
+//     if (!data) {
+//       console.warn('No contact data found');
+//       return '';
+//     }
+
+//     const street = data.Mailing_Street || data.Street || '';
+//     const city = data.Mailing_City || data.City || '';
+//     const state = data.Mailing_State || '';
+//     const zip = data.Mailing_Zip || '';
+//     const country = data.Mailing_Country || '';
+
+//     const parts = [
+//       street,
+//       city ? `${city}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}` : '',
+//       country
+//     ].filter(Boolean);
+
+//     const address = parts.join(', ');
+
+//     return address;
+//   } catch (error) {
+//     console.error('getContactAddress error:', error);
+//     return '';
+//   }
+// };
+// ===== CONTACTS =====
+export const getContactAddress = async (contactId) => {
+  try {
+    const response = await ZOHO.CRM.CONNECTION.invoke("zohoadvancecalendar", { 
+      method: "GET", 
+      url: `https://www.zohoapis.com/crm/v2/Contacts/${contactId}`
+    });
+    
+    const data = response?.details?.statusMessage?.data?.[0];
+    if (!data) return '';
+    
+    const address = [
+      data.Mailing_Street,
+      `${data.Mailing_City || ''}${data.Mailing_State ? ', ' + data.Mailing_State : ''}${data.Mailing_Zip ? ' ' + data.Mailing_Zip : ''}`,
+      data.Mailing_Country
+    ].filter(Boolean).join(', ');
+    
+    return address || data.Company || '';
+  } catch (error) {
+    console.error('Contacts address error:', error);
+    return '';
+  }
+};
+
+// ===== LEADS =====
+export const getLeadAddress = async (leadId) => {
+  try {
+    const response = await ZOHO.CRM.CONNECTION.invoke("zohoadvancecalendar", { 
+      method: "GET", 
+      url: `https://www.zohoapis.com/crm/v2/Leads/${leadId}`
+    });
+    
+    const data = response?.details?.statusMessage?.data?.[0];
+    if (!data) return '';
+    
+    // Leads fallback: Company → Showroom → Phone
+    return data.Company || 
+           data.Showroom?.name || 
+           data.Phone || 
+           data.Full_Name || '';
+  } catch (error) {
+    console.error('Leads address error:', error);
+    return '';
+  }
+};
+
+// ===== ACCOUNTS =====
+export const getAccountAddress = async (accountId) => {
+  try {
+    const response = await ZOHO.CRM.CONNECTION.invoke("zohoadvancecalendar", { 
+      method: "GET", 
+      url: `https://www.zohoapis.com/crm/v2/Accounts/${accountId}`
+    });
+    
+    const data = response?.details?.statusMessage?.data?.[0];
+    if (!data) return '';
+    
+    const address = [
+      data.Billing_Street || data.Street,
+      `${data.Billing_City || data.City || ''}${data.Billing_State ? ', ' + data.Billing_State : ''}${data.Billing_Zip ? ' ' + data.Billing_Zip : ''}`,
+      data.Billing_Country
+    ].filter(Boolean).join(', ');
+    
+    return address || data.Account_Name || '';
+  } catch (error) {
+    console.error('Accounts address error:', error);
+    return '';
+  }
+};
+
+// ===== DEALS =====
+export const getDealAddress = async (dealId) => {
+  try {
+    const response = await ZOHO.CRM.CONNECTION.invoke("zohoadvancecalendar", { 
+      method: "GET", 
+      url: `https://www.zohoapis.com/crm/v2/Deals/${dealId}`
+    });
+    
+    const data = response?.details?.statusMessage?.data?.[0];
+    if (!data) return '';
+    
+    // Deals: Use Account address or Deal fields
+    return data.Billing_Address || 
+           data.Account_Name?.name || 
+           data.Deal_Name || '';
+  } catch (error) {
+    console.error('Deals address error:', error);
+    return '';
+  }
+};
+
+export async function getShowroomAddress(userId) {
+  const user = await ZOHO.CRM.API.getRecord({ Entity: 'Users', RecordID: userId });
+  const showroomId = user.data[0].Showroom__c; // lookup field
+  if (!showroomId) return "";
+  
+  const showroom = await ZOHO.CRM.API.getRecord({ 
+    Entity: 'Showrooms', 
+    RecordID: showroomId 
+  });
+  return showroom.data[0].Address || "";
+}
+
+export async function getShowroomAddressFromUser(userId) {
+  if (!userId) return '';
+  
+  try {
+    // ✅ Use ZOHO.CRM.USER or CRM Users endpoint
+    const userResp = await ZOHO.CRM.API.getRecord({ 
+      Entity: 'Contacts',  // or 'Leads' - users are stored here
+      RecordID: userId 
+    });
+    
+    const showroomId = userResp.data?.[0]?.Showroomc?.id || userResp.data?.[0]?.Showroom__c;
+    if (!showroomId) return '';
+    
+    const showroomResp = await ZOHO.CRM.API.getRecord({ 
+      Entity: 'Showrooms', 
+      RecordID: showroomId 
+    });
+    
+    const showroom = showroomResp.data?.[0];
+    return [showroom.Street, showroom.City, showroom.State, showroom.Zipcode, showroom.Country]
+      .filter(Boolean).join(', ');
+  } catch (err) {
+    console.error('Error fetching showroom address:', err);
+    return '';
+  }
+}
+
+export async function sendSMS(phone, message, meetingId) {
+  // Twilio/Zoho Campaigns/SMS API
+  await fetch('/api/sms/send', {
+    method: 'POST',
+    body: JSON.stringify({ phone, message: `Confirm meeting? Reply Y/N`, meetingId })
+  });
+}
+
+export async function handleSMSReply(messageId, reply) {
+  const meeting = await getRecord('Events', messageId);
+  if (reply === 'Y') {
+    await updateRecord('Events', { id: meetingId, CheckInStatus: 'Confirmed' });
+    await sendMeetingInvite(meeting.relatedRecord.id); // Email/Zoho Meeting
+  } else if (reply === 'N') {
+    await updateRecord('Events', { id: meetingId, CheckInStatus: 'Cancelled' });
+    await notifyShowroomManager(meeting.hostId, `Meeting ${meetingId} cancelled`);
+  }
+}
+
