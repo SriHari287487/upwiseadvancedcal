@@ -88,6 +88,10 @@ const initialState = {
     "#6db744", "#34b1b6", "#e0b917", "#7f469b", "#3474ba"
   ],
   appointmentTypeFilter: null,
+
+  /* Pending Opportunity data - used when opening from Advance Scheduling */
+  /* User first selects a timeslot, then modal opens with this data + selected time */
+  pendingOpportunityData: null,
 };
 
 /* ------------------------------ Actions ----------------------------- */
@@ -133,6 +137,9 @@ const A = {
   SET_APPOINTMENT_TYPES: "SET_APPOINTMENT_TYPES",
   SET_APPT_TYPE_FILTER: "SET_APPT_TYPE_FILTER",
 
+  // Pending opportunity data (for Advance Scheduling flow)
+  SET_PENDING_OPPORTUNITY: "SET_PENDING_OPPORTUNITY",
+  CLEAR_PENDING_OPPORTUNITY: "CLEAR_PENDING_OPPORTUNITY",
 };
 
 /* ------------------------------ Reducer ----------------------------- */
@@ -212,24 +219,24 @@ function reducer(state, action) {
       
     /* modal: create / edit */
     case A.OPEN_CREATE: {
-  const seed = action.payload || {};
+      const seed = action.payload || {};
 
-  const nextForm = {
-    ...initialState.meetingForm,
-    ...seed, // bring in host, startDateTime, endDateTime, etc.
-    hostId:
-      seed.hostId ??
-      seed.userId ??
-      initialState.meetingForm.hostId,
-  };
+      const nextForm = {
+        ...initialState.meetingForm,
+        ...seed,
+        hostId:
+          seed.hostId ??
+          seed.userId ??
+          initialState.meetingForm.hostId,
+      };
 
-  return {
-    ...state,
-    isCreateOpen: true,
-    modalMode: "create",
-    meetingForm: nextForm,
-  };
-}
+      return {
+        ...state,
+        isCreateOpen: true,
+        modalMode: "create",
+        meetingForm: nextForm,
+      };
+    }
 
 
     case A.OPEN_EDIT: {
@@ -296,6 +303,12 @@ function reducer(state, action) {
 
     case A.SET_APPT_TYPE_FILTER:
   return { ...state, appointmentTypeFilter: action.payload ?? null };
+
+    case A.SET_PENDING_OPPORTUNITY:
+      return { ...state, pendingOpportunityData: action.payload || null };
+
+    case A.CLEAR_PENDING_OPPORTUNITY:
+      return { ...state, pendingOpportunityData: null };
 
     default:
       return state;
@@ -437,6 +450,16 @@ export function CalendarProvider({ children }) {
   []
 );
 
+  // Pending opportunity data (for Advance Scheduling flow)
+  const setPendingOpportunity = useCallback(
+    (data) => dispatch({ type: A.SET_PENDING_OPPORTUNITY, payload: data }),
+    []
+  );
+  const clearPendingOpportunity = useCallback(
+    () => dispatch({ type: A.CLEAR_PENDING_OPPORTUNITY }),
+    []
+  );
+
   const actions = useMemo(
     () => ({
       // calendar
@@ -455,6 +478,9 @@ export function CalendarProvider({ children }) {
       // appointment types
       setAppointmentTypes,
       setAppointmentTypeFilter,
+      // pending opportunity (Advance Scheduling)
+      setPendingOpportunity,
+      clearPendingOpportunity,
     }),
     [
       setSelectedDate, goToToday, goToPreviousDay, goToNextDay,
@@ -464,6 +490,7 @@ export function CalendarProvider({ children }) {
       resetMeetingForm, patchMeetingForm, setParticipants,
       openParticipants, closeParticipants,
       openLookup, closeLookup, applyLookup, setAppointmentTypes, setAppointmentTypeFilter,
+      setPendingOpportunity, clearPendingOpportunity,
     ]
   );
 

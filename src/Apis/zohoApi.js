@@ -1,4 +1,28 @@
 import {pad , getLocalDayBounds, toZohoIsoWithColonOffset, touchesDay} from '../Helper/HelperFunction'
+
+// Track if Zoho SDK is initialized
+let zohoSDKInitialized = false;
+
+export function setZohoSDKInitialized(value) {
+  zohoSDKInitialized = value;
+}
+
+export function isZohoSDKReady() {
+  return zohoSDKInitialized && typeof window?.ZOHO?.CRM?.API !== 'undefined';
+}
+
+// Wait for SDK to be ready (with timeout)
+async function waitForSDK(timeout = 5000) {
+  if (isZohoSDKReady()) return true;
+  
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (isZohoSDKReady()) return true;
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return false;
+}
+
 export async function fetchAllRecords(modArg, page = 1, per_page = 200) {
   try {
     // Normalize input: string module or object with { module } / { Entity }
@@ -27,45 +51,38 @@ export async function fetchAllRecords(modArg, page = 1, per_page = 200) {
 
 
 export async function searchRecords(date = new Date()) {
+  // Wait for SDK to be ready before making API calls
+  const sdkReady = await waitForSDK(3000);
+  if (!sdkReady) {
+    console.warn("Zoho SDK not ready, returning empty results");
+    return [];
+  }
+
   const { start, end } = getLocalDayBounds(date);
-  const startStr = toZohoIsoWithColonOffset(start); // e.g. 2025-10-29T00:00:00+05:30
-  const endStr   = toZohoIsoWithColonOffset(end);   // e.g. 2025-10-29T23:59:59+05:30
+  const startStr = toZohoIsoWithColonOffset(start);
+  const endStr   = toZohoIsoWithColonOffset(end);
 
-  // Overlap condition (recommended):
-  //   (Start <= dayEnd) AND (End >= dayStart)
   const criteriaRaw = `(Start_DateTime:less_equal:${endStr})and(End_DateTime:greater_equal:${startStr})`;
-
-  // Absolutely must URL-encode entire criteria, per Zoho example
   const criteria = encodeURIComponent(criteriaRaw);
 
   const module = "Events";
   const conn_name = "zohoadvancecalendar";
-  const api_domain = "https://www.zohoapis.com"; // switch to .eu / .in if that’s your DC
+  const api_domain = "https://www.zohoapis.com";
 
   const url = `${api_domain}/crm/v8/${module}/search?criteria=${criteria}`;
 
   const req_data = {
     method: "GET",
-    url, // full encoded URL
+    url,
   };
 
   try {
     const resp = await ZOHO.CRM.CONNECTION.invoke(conn_name, req_data);
     const rows = Array.isArray(resp?.details?.statusMessage?.data) ? resp.details.statusMessage.data : [];
-    // console.log('search reponse', rows)
-//     const res = await zrc.get("/crm/v8/Events/search", {
-// 	params: {
-// 		criteria: criteriaRaw
-// 	}
-// });
-// console.log('ZRC res', res)
-
-return rows
+    return rows;
   } catch (err) {
-    console.error("Zoho search error:", err);
-    console.debug("criteria (raw):", criteriaRaw);
-    console.debug("criteria (encoded):", criteria);
-    throw err;
+    console.warn("Zoho search error:", err);
+    return [];
   }
 }
 
@@ -604,53 +621,6 @@ export async function getBusinessHours() {
   }
 }
 
-// Add null checks before accessing [0]
-// export const getContactAddress = async (contactId, module) => {
-//   try {
-//     if (typeof ZOHO === 'undefined' || !ZOHO.CRM || !ZOHO.CRM.CONNECTION) {
-//       console.error('Zoho SDK not available');
-//       return '';
-//     }
-
-//     const conn_name = "zohoadvancecalendar";
-//     const api_domain = "https://www.zohoapis.com";
-//     const url = `${api_domain}/crm/v2/${module}/${contactId}`;
-    
-//     const response = await ZOHO.CRM.CONNECTION.invoke(conn_name, { 
-//       method: "GET", 
-//       url 
-//     });
-    
-//     console.log('Raw Zoho response:', response);
-
-//     // Extract data from response (handles your structure)
-//     const data = response?.details?.statusMessage?.data?.[0];
-
-//     if (!data) {
-//       console.warn('No contact data found');
-//       return '';
-//     }
-
-//     const street = data.Mailing_Street || data.Street || '';
-//     const city = data.Mailing_City || data.City || '';
-//     const state = data.Mailing_State || '';
-//     const zip = data.Mailing_Zip || '';
-//     const country = data.Mailing_Country || '';
-
-//     const parts = [
-//       street,
-//       city ? `${city}${state ? ', ' + state : ''}${zip ? ' ' + zip : ''}` : '',
-//       country
-//     ].filter(Boolean);
-
-//     const address = parts.join(', ');
-
-//     return address;
-//   } catch (error) {
-//     console.error('getContactAddress error:', error);
-//     return '';
-//   }
-// };
 // ===== CONTACTS =====
 export const getContactAddress = async (contactId) => {
   try {

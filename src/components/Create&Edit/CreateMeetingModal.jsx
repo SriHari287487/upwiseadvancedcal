@@ -48,6 +48,7 @@ import {
   getAccountAddress,
   getLeadAddress,
 } from "../../Apis/zohoApi";
+import { sendMeetingConfirmationSMS, getCustomerPhone } from "../../services/SMSService";
 
 /* ---------------- Reusables ---------------- */
 
@@ -697,12 +698,6 @@ export default function MeetingSchedulerMUI() {
 
 React.useEffect(() => {
   if (!isCreateOpen || modalMode !== 'create') return;
-  
-  console.log('🔍 Venue check:', { 
-    venue: meetingVenue, 
-    contactId: relatedRecord?.id, 
-    module: relatedRecord?.module
-  });
 
   if (typeof meetingVenue === 'string' && 
       meetingVenue.trim().toLowerCase() === 'client location') {
@@ -904,6 +899,9 @@ React.useEffect(() => {
 
       const Participants = buildParticipants(participants);
 
+      // Determine status: "Scheduled" for new meetings, preserve existing for edits
+      const meetingStatus = modalMode === "create" ? "Scheduled" : (Status || "PLANNED");
+
       const apiData = {
         Event_Title: subject || "",
         Description: description || "",
@@ -916,11 +914,10 @@ React.useEffect(() => {
             : null,
         Participants,
         Meeting_Venue__s: safeMeetingVenue || null,
-        // Meeting_Venue__s: safeMeetingVenue || null,
-        Status: Status || "PLANNED",
+        Check_In_Status: meetingStatus, // Use Check_In_Status for meeting status
+        Status: meetingStatus,
         All_Day: !!allDay,
         Appointment_Type: appointmentType || "",
-        // Currency: currency || "USD",
         Recurring_Activity: buildRecurringActivity(
           repeat,
           allDay ? startDateOnly : startDT
@@ -1019,6 +1016,23 @@ React.useEffect(() => {
           }
 
           fetchSuccess(finalList);
+
+          // Send SMS confirmation to customer (async - don't block UI)
+          if (createdRecord && relatedRecord) {
+            sendMeetingConfirmationSMS(
+              { ...createdRecord, id: newRecordId },
+              relatedRecord
+            ).then((smsResult) => {
+              if (smsResult.success) {
+                console.log("SMS confirmation sent successfully");
+              } else {
+                console.warn("SMS confirmation failed:", smsResult.error);
+              }
+            }).catch((smsErr) => {
+              console.warn("SMS sending error:", smsErr);
+            });
+          }
+
           closeModal();
         } catch (err) {
           console.error("Failed to refresh calendar after create:", err);

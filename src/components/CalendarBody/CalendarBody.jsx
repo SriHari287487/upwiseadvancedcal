@@ -32,6 +32,12 @@ function useNowTopLocal(rowHeight) {
 }
 import { parseToMinutes, prioritizeTeam } from "../../Helper/HelperFunction";
 import { getBusinessHours } from "../../Apis/zohoApi";
+import { 
+  getUserBusinessHours, 
+  getUserTimeOff, 
+  isDateDayOff,
+  getBatchCalendarInfo 
+} from "../../services/BusinessHoursService";
 import { toast } from "react-toastify";
 import { FiClock } from "react-icons/fi";
 import MeetingSchedulerMUI from "../Create&Edit/CreateMeetingModal";
@@ -294,7 +300,7 @@ function WeekView({ state, actions }) {
       const startDateTime = new Date(
         baseDate.getTime() + snappedStartMinutes * 60 * 1000
       );
-      const endDateTime = new Date(startDateTime.getTime() + 15 * 60 * 1000);
+      const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
 
       openCreate({
         host: null,
@@ -625,7 +631,10 @@ function DayView({ state, actions }) {
   const gridRef = useRef(null);
   const nowTop = useNowTopLocal(rowHeight);
   const [businessHours, setBusinessHours] = useState(null);
+  const [userBusinessHoursMap, setUserBusinessHoursMap] = useState(new Map());
+  const [userTimeOffMap, setUserTimeOffMap] = useState(new Map());
 
+  // Fetch org-level business hours (fallback)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -639,6 +648,42 @@ function DayView({ state, actions }) {
     return () => (mounted = false);
   }, []);
 
+  // Fetch user-specific business hours and time-off for all team members
+  useEffect(() => {
+    if (!team || team.length === 0) return;
+    let mounted = true;
+
+    const fetchUserHours = async () => {
+      const hoursMap = new Map();
+      const timeOffMap = new Map();
+      const currentDate = selectedDate || new Date();
+
+      await Promise.all(
+        team.map(async (member) => {
+          try {
+            // Get user-specific business hours
+            const userHours = await getUserBusinessHours(member.id);
+            hoursMap.set(member.id, userHours);
+
+            // Get user time-off for the current day
+            const timeOff = await getUserTimeOff(member.id, currentDate, currentDate);
+            timeOffMap.set(member.id, timeOff);
+          } catch (err) {
+            console.warn(`Could not fetch hours for user ${member.id}:`, err);
+          }
+        })
+      );
+
+      if (mounted) {
+        setUserBusinessHoursMap(hoursMap);
+        setUserTimeOffMap(timeOffMap);
+      }
+    };
+
+    fetchUserHours();
+    return () => { mounted = false; };
+  }, [team, selectedDate]);
+
   const minutesLocal = (d) => {
     const dt = typeof d === "string" ? new Date(d) : d;
     return dt.getHours() * 60 + dt.getMinutes();
@@ -648,6 +693,7 @@ function DayView({ state, actions }) {
 
   const handleColumnClick = useCallback(
     (e, host) => {
+      e.stopPropagation();
       if (!host) return;
 
       const rect = e.currentTarget.getBoundingClientRect();
@@ -657,10 +703,10 @@ function DayView({ state, actions }) {
       const snappedStartMinutes = clamp(
         Math.floor(minutesFromTop / 15) * 15,
         0,
-        DAY_MIN - 15 // leave space for at least 15min if you want
+        DAY_MIN - 15
       );
 
-      const snappedEndMinutes = snappedStartMinutes + 15;
+      const snappedEndMinutes = snappedStartMinutes + 60;
 
       const baseDate = selectedDate ? toLocalTZ(selectedDate) : toLocalTZ(new Date());
       baseDate.setHours(0, 0, 0, 0);
@@ -761,14 +807,31 @@ function DayView({ state, actions }) {
             );
 
             const dayName = (selectedDate ? toLocalTZ(selectedDate) : toLocalTZ(new Date())).toLocaleDateString(undefined, { weekday: 'long' });
-            const cfg = businessHours?.days?.[dayName];
+            
+            // Get user-specific business hours or fall back to org hours
+            const userHours = userBusinessHoursMap.get(m.id);
+            const userDayHours = userHours?.[dayName];
+            const cfg = userDayHours || businessHours?.days?.[dayName];
+            
+            // Check if user has day-off/vacation
+            const userTimeOff = userTimeOffMap.get(m.id) || [];
+            const dayOffInfo = isDateDayOff(userTimeOff, selectedDate || new Date());
+            const isDayOff = dayOffInfo.isDayOff;
 
             return (
               <div
                 key={m.id}
                 className="col-body"
                 style={{ gridColumn: i + 2 }}
-                onClick={(e) => handleColumnClick(e, m)}
+                onClick={(e) => {
+                  if (isDayOff) {
+                    e.stopPropagation();
+                    const typeLabel = typeof dayOffInfo.type === 'string' ? dayOffInfo.type : 'day off';
+                    toast.info(`${m.name} is on ${typeLabel}`);
+                    return;
+                  }
+                  handleColumnClick(e, m);
+                }}
               >
                 <div className="col-bg" />
                 <div className="col-events">
@@ -776,15 +839,56 @@ function DayView({ state, actions }) {
                   {i === team.length - 1 && (
                     <div className="now-dot-right" style={{ top: nowTop }} />
                   )}
+                    
+                    {/* Full day-off overlay (vacation, PTO, etc.) */}
+                    {isDayOff && (
+                      <div
+                        className="blocked-area day-off-overlay"
+                        style={{ 
+                          position: 'absolute', 
+                          left: 0, 
+                          right: 0, 
+                          top: 0, 
+                          bottom: 0,
+                          background: 'repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.08) 10px, rgba(239, 68, 68, 0.04) 10px, rgba(239, 68, 68, 0.04) 20px)',
+                          zIndex: 50,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          pointerEvents: 'auto',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const reasonLabel = typeof dayOffInfo.reason === 'string' && dayOffInfo.reason 
+                            ? dayOffInfo.reason 
+                            : (typeof dayOffInfo.type === 'string' ? dayOffInfo.type : 'Day Off');
+                          toast.info(`${m.name}: ${reasonLabel}`);
+                        }}
+                      >
+                        <div style={{
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          color: 'white',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                        }}>
+                          {typeof dayOffInfo.type === 'string' ? dayOffInfo.type : 'Day Off'}
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* blocked overlays for out-of-business hours (day view per-column) */}
-                    {businessHours && businessHours.enabled && cfg && (
+                    {!isDayOff && cfg && (cfg.isWorkDay !== false) && (
                       (() => {
                         const parseTime = (s) => {
                           const [hh, mm] = (s || '00:00').split(':').map(Number);
                           return hh * 60 + (mm || 0);
                         };
-                        const startMin = parseTime(cfg.start_time);
-                        const endMin = parseTime(cfg.end_time);
+                        const startMin = parseTime(cfg.start || cfg.start_time);
+                        const endMin = parseTime(cfg.end || cfg.end_time);
                         const beforeH = (startMin / 60) * rowHeight;
                         const afterH = ((24 * 60 - endMin) / 60) * rowHeight;
 
@@ -794,23 +898,39 @@ function DayView({ state, actions }) {
                               <div
                                 className="blocked-area"
                                 style={{ position: 'absolute', left: 0, right: 0, top: 0, height: beforeH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
-                                onClick={(e)=>{ e.stopPropagation(); 
-                                  // toast.info('Outside business hours'); 
-                                }}
+                                onClick={(e)=>{ e.stopPropagation(); }}
                               />
                             )}
                             {endMin < 24*60 && (
                               <div
                                 className="blocked-area"
                                 style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: afterH, background: 'rgba(0,0,0,0.06)', zIndex: 50 }}
-                                onClick={(e)=>{ e.stopPropagation(); 
-                                  // toast.info('Outside business hours'); 
-                                }}
+                                onClick={(e)=>{ e.stopPropagation(); }}
                               />
                             )}
                           </>
                         );
                       })()
+                    )}
+                    
+                    {/* Non-working day overlay (weekend, etc.) */}
+                    {!isDayOff && cfg && cfg.isWorkDay === false && (
+                      <div
+                        className="blocked-area non-working-day"
+                        style={{ 
+                          position: 'absolute', 
+                          left: 0, 
+                          right: 0, 
+                          top: 0, 
+                          bottom: 0,
+                          background: 'rgba(0,0,0,0.04)',
+                          zIndex: 50,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.info(`${m.name}: Non-working day`);
+                        }}
+                      />
                     )}
                   {evs.map((ev) => {
   const startDateObj = toLocalTZ(ev.start);

@@ -300,17 +300,41 @@ export default function OpportunityLookupModal({ open, onClose, onSelect }) {
   const toggleCheck = (row) => {
     const id = row.id || row.ID || row._id;
     setCheckedId(id);
-    // if (onSelect) onSelect(row);
+    
     if (onSelect) {
-      console.log("row", row)
-    // Pass COMPLETE row data including module
-    onSelect({
-      id,
-      name: row.FullName || row.Full_Name || row.fullname || row.full_name || row.Name || row.name || row.AccountName?.name || row.Account_Name || row.AccountName || row.Company || row.DealName || row.Deal_Name || row.Subject,
-      module: relatedTo,  // ← DYNAMIC MODULE (Leads/Contacts/Accounts/Deals)
-      raw: row  // Full row for debugging
-    });
-  }
+      console.log("row", row);
+      
+      // Helper to extract string value from field (handles Zoho lookup objects)
+      const getStringValue = (val) => {
+        if (!val) return null;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'object') return val.name || val.display_value || val.value || null;
+        return String(val);
+      };
+      
+      // Extract name, handling both string and object field values
+      const name = getStringValue(row.Full_Name) || 
+                   getStringValue(row.FullName) || 
+                   getStringValue(row.full_name) || 
+                   getStringValue(row.fullname) || 
+                   getStringValue(row.Name) || 
+                   getStringValue(row.name) || 
+                   getStringValue(row.Account_Name) || 
+                   getStringValue(row.AccountName) || 
+                   getStringValue(row.Company) || 
+                   getStringValue(row.Deal_Name) || 
+                   getStringValue(row.DealName) || 
+                   getStringValue(row.Subject) ||
+                   '';
+      
+      // Pass COMPLETE row data including module
+      onSelect({
+        id,
+        name,
+        module: relatedTo,  // ← DYNAMIC MODULE (Leads/Contacts/Accounts/Deals)
+        raw: row  // Full row for debugging
+      });
+    }
   };
 
   /* ---------------------------
