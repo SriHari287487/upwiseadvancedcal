@@ -60,10 +60,23 @@ export default function CalendarContainer() {
   useEffect(() => {
     let canceled = false;
     let hasOpenedModal = false; // Prevent double opening
+    let cachedCurrentUser = null; // Cache current user to avoid repeated calls
 
     const bootstrap = async () => {
       if (canceled) return;
       await initAndFetch();
+    };
+
+    // Cache current user (only fetch once)
+    const getCachedCurrentUser = async () => {
+      if (cachedCurrentUser) return cachedCurrentUser;
+      try {
+        cachedCurrentUser = await ZOHO.CRM.CONFIG.getCurrentUser();
+        return cachedCurrentUser;
+      } catch (e) {
+        console.warn("Could not get current user:", e);
+        return null;
+      }
     };
 
     // Function to open the create modal with Opportunity data
@@ -88,14 +101,8 @@ export default function CalendarContainer() {
           return;
         }
 
-        // Get the current user as default host
-        let currentUser = null;
-        try {
-          currentUser = await ZOHO.CRM.CONFIG.getCurrentUser();
-          console.log("Current user:", currentUser);
-        } catch (e) {
-          console.warn("Could not get current user:", e);
-        }
+        // Get the current user as default host (use cached version)
+        const currentUser = await getCachedCurrentUser();
 
         // Extract contact info from the opportunity
         const contactId = oppty.Contact_Name?.id || oppty.Contact?.id || null;
@@ -318,30 +325,19 @@ export default function CalendarContainer() {
             }
           }
           
-          // Method 5: Try ZOHO.CRM.CONFIG methods
+          // Method 5: Try ZOHO.CRM.CONFIG.getContext (only method that might have entity/recordId)
           if (!entity || !recordId) {
-            console.log("Method 5 - Trying ZOHO.CRM.CONFIG methods...");
+            console.log("Method 5 - Trying ZOHO.CRM.CONFIG.getContext...");
             try {
-              // Try getOrgInfo
-              const orgInfo = await ZOHO.CRM.CONFIG.getOrgInfo();
-              console.log("  getOrgInfo:", orgInfo);
-            } catch (e) {}
-            
-            try {
-              // Try getCurrentUser
-              const currentUser = await ZOHO.CRM.CONFIG.getCurrentUser();
-              console.log("  getCurrentUser:", currentUser);
-            } catch (e) {}
-            
-            try {
-              // Try getContext - might have page context
               const context = await ZOHO.CRM.CONFIG?.getContext?.();
               console.log("  getContext:", context);
               if (context?.Entity && context?.EntityId) {
                 entity = context.Entity;
                 recordId = context.EntityId;
               }
-            } catch (e) {}
+            } catch (e) {
+              console.log("  getContext not available");
+            }
           }
           
           // Method 6: Try ZOHO.CRM.UI methods for Web Tab context
@@ -465,8 +461,8 @@ export default function CalendarContainer() {
           if (!entity || !recordId) {
             console.log("Method 11 - Checking User's Pending_Schedule_Record field...");
             try {
-              // Get current user
-              const currentUser = await ZOHO.CRM.CONFIG.getCurrentUser();
+              // Get current user (use cached version from getCachedCurrentUser)
+              const currentUser = await getCachedCurrentUser();
               const userId = currentUser?.users?.[0]?.id || currentUser?.id;
               
               if (userId) {

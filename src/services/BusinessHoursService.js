@@ -8,6 +8,7 @@ const API_DOMAIN = "https://www.zohoapis.com";
 
 // Cache for user business hours (to avoid repeated API calls)
 const userHoursCache = new Map();
+const userTimeOffCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -161,9 +162,16 @@ export async function getUserTimeOff(userId, startDate, endDate) {
     return [];
   }
 
+  // Check cache first (cache key includes userId and date range)
+  const start = formatDateForQuery(startDate);
+  const end = formatDateForQuery(endDate);
+  const cacheKey = `${userId}_${start}_${end}`;
+  const cached = userTimeOffCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.timeOff;
+  }
+
   try {
-    const start = formatDateForQuery(startDate);
-    const end = formatDateForQuery(endDate);
 
     // Try to get from Zoho Leave/Time-off module or custom module
     const criteria = `(Owner:equals:${userId})and(Start_Date:less_equal:${end})and(End_Date:greater_equal:${start})`;
@@ -180,7 +188,7 @@ export async function getUserTimeOff(userId, startDate, endDate) {
 
         const records = resp?.details?.statusMessage?.data || [];
         if (records.length > 0) {
-          return records.map((r) => ({
+          const timeOff = records.map((r) => ({
             id: r.id,
             userId: r.Owner?.id || userId,
             startDate: r.Start_Date || r.From_Date,
@@ -190,6 +198,14 @@ export async function getUserTimeOff(userId, startDate, endDate) {
             allDay: r.All_Day !== false,
             reason: r.Reason || r.Description || "",
           }));
+          
+          // Cache the result
+          userTimeOffCache.set(cacheKey, {
+            timeOff,
+            timestamp: Date.now(),
+          });
+          
+          return timeOff;
         }
       } catch (moduleErr) {
         // Module doesn't exist - try next one
@@ -210,7 +226,7 @@ export async function getUserTimeOff(userId, startDate, endDate) {
     });
 
     const events = eventsResp?.details?.statusMessage?.data || [];
-    return events.map((e) => ({
+    const timeOff = events.map((e) => ({
       id: e.id,
       userId: e.Owner?.id || userId,
       startDate: e.Start_DateTime?.split("T")[0],
@@ -220,6 +236,14 @@ export async function getUserTimeOff(userId, startDate, endDate) {
       allDay: e.All_day || true,
       reason: e.Event_Title || "",
     }));
+    
+    // Cache the result
+    userTimeOffCache.set(cacheKey, {
+      timeOff,
+      timestamp: Date.now(),
+    });
+    
+    return timeOff;
   } catch (err) {
     console.warn("Could not fetch user time-off:", err);
     return [];

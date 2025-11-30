@@ -649,6 +649,7 @@ function DayView({ state, actions }) {
   }, []);
 
   // Fetch user-specific business hours and time-off for all team members
+  // Only fetch business hours once per team (cached), time-off when date changes
   useEffect(() => {
     if (!team || team.length === 0) return;
     let mounted = true;
@@ -657,19 +658,30 @@ function DayView({ state, actions }) {
       const hoursMap = new Map();
       const timeOffMap = new Map();
       const currentDate = selectedDate || new Date();
+      const dateKey = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
+      // Fetch business hours (cached, so safe to call even if team changes)
       await Promise.all(
         team.map(async (member) => {
           try {
-            // Get user-specific business hours
+            // Get user-specific business hours (cached for 5 minutes)
             const userHours = await getUserBusinessHours(member.id);
             hoursMap.set(member.id, userHours);
+          } catch (err) {
+            console.warn(`Could not fetch hours for user ${member.id}:`, err);
+          }
+        })
+      );
 
-            // Get user time-off for the current day
+      // Fetch time-off for current date (cached per date range)
+      await Promise.all(
+        team.map(async (member) => {
+          try {
+            // Get user time-off for the current day (cached per date range)
             const timeOff = await getUserTimeOff(member.id, currentDate, currentDate);
             timeOffMap.set(member.id, timeOff);
           } catch (err) {
-            console.warn(`Could not fetch hours for user ${member.id}:`, err);
+            console.warn(`Could not fetch time-off for user ${member.id}:`, err);
           }
         })
       );
@@ -680,8 +692,12 @@ function DayView({ state, actions }) {
       }
     };
 
-    fetchUserHours();
-    return () => { mounted = false; };
+    // Debounce to avoid rapid calls when date changes quickly
+    const timeoutId = setTimeout(fetchUserHours, 100);
+    return () => { 
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [team, selectedDate]);
 
   const minutesLocal = (d) => {

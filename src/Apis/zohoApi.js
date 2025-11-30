@@ -271,19 +271,47 @@ export async function getFields(module = 'Events', data) {
     }
 }
 
+// Cache for fields metadata (to avoid repeated API calls)
+const fieldsMetaCache = new Map();
+const FIELDS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes (fields don't change often)
+
 export async function getFieldsMeta(module = "Events") {
+  // Check cache first
+  const cacheKey = module;
+  const cached = fieldsMetaCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < FIELDS_CACHE_TTL) {
+    return cached.fields;
+  }
+
   try {
-
     const res = await ZOHO.CRM.META.getFields({ Entity: module });
-    return Array.isArray(res?.fields) ? res.fields : [];
-
+    const fields = Array.isArray(res?.fields) ? res.fields : [];
+    
+    // Cache the result
+    fieldsMetaCache.set(cacheKey, {
+      fields,
+      timestamp: Date.now(),
+    });
+    
+    return fields;
   } catch (err) {
     console.error("getFieldsMeta failed:", err);
     return [];
   }
 }
 
+// Cache for picklist values (to avoid repeated API calls)
+const picklistCache = new Map();
+const PICKLIST_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 export async function getPicklistValues(apiName, module = "Events") {
+  // Check cache first
+  const cacheKey = `${module}_${apiName}`;
+  const cached = picklistCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < PICKLIST_CACHE_TTL) {
+    return cached.values;
+  }
+
   const fields = await getFieldsMeta(module);
   const field = fields.find((f) => f.api_name === apiName);
   if (!field) return [];
@@ -303,7 +331,7 @@ export async function getPicklistValues(apiName, module = "Events") {
     const apiList = resp?.details?.statusMessage?.pick_list_values ?? [];
 
     if (Array.isArray(apiList) && apiList.length) {
-      return apiList
+      const processedList = apiList
         .filter((p) => p.type === "used") // only used options
         .filter(
           (p) =>
@@ -320,15 +348,34 @@ export async function getPicklistValues(apiName, module = "Events") {
           color: p.colour_code || null,
           sequence: p.sequence_number,
         }));
+      
+      // Cache the result
+      picklistCache.set(cacheKey, {
+        values: processedList,
+        timestamp: Date.now(),
+      });
+      
+      return processedList;
     }
   } catch (e) {
     console.error("Error fetching picklist values", e);
   }
-
+  
   // fallback: old metadata
-  const list = Array.isArray(field.pick_list_values)
+  const fallbackList = Array.isArray(field.pick_list_values)
     ? field.pick_list_values
     : [];
+  
+  if (fallbackList.length > 0) {
+    // Cache fallback result too
+    picklistCache.set(cacheKey, {
+      values: fallbackList,
+      timestamp: Date.now(),
+    });
+    return fallbackList;
+  }
+  
+  return [];
 
   return list
     .filter((p) => p.type === "used" || p.type === undefined)

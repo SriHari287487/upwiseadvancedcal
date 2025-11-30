@@ -41,11 +41,22 @@ export async function getCustomerPhone(relatedRecord) {
   }
 }
 
+// Cache for user and showroom data (to avoid repeated API calls)
+const userCache = new Map();
+const showroomCache = new Map();
+const USER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Get showroom manager info for notifications
  */
 export async function getShowroomManager(showroomId) {
   if (!showroomId) return null;
+
+  // Check cache first
+  const cached = showroomCache.get(showroomId);
+  if (cached && Date.now() - cached.timestamp < USER_CACHE_TTL) {
+    return cached.manager;
+  }
 
   try {
     const resp = await ZOHO.CRM.API.getRecord({
@@ -58,6 +69,15 @@ export async function getShowroomManager(showroomId) {
 
     // Get manager from showroom record
     const manager = showroom.Manager || showroom.Showroom_Manager || null;
+    
+    // Cache the result
+    if (manager) {
+      showroomCache.set(showroomId, {
+        manager,
+        timestamp: Date.now(),
+      });
+    }
+    
     return manager;
   } catch (err) {
     console.error("Error fetching showroom manager:", err);
@@ -408,6 +428,37 @@ async function sendCalendarInvite(meeting) {
 }
 
 /**
+ * Get user with caching
+ */
+async function getCachedUser(userId) {
+  if (!userId) return null;
+  
+  // Check cache first
+  const cached = userCache.get(userId);
+  if (cached && Date.now() - cached.timestamp < USER_CACHE_TTL) {
+    return cached.user;
+  }
+  
+  try {
+    const userResp = await ZOHO.CRM.API.getUser({ ID: userId });
+    const user = userResp?.users?.[0];
+    
+    // Cache the result
+    if (user) {
+      userCache.set(userId, {
+        user,
+        timestamp: Date.now(),
+      });
+    }
+    
+    return user;
+  } catch (err) {
+    console.warn("Could not fetch user:", err);
+    return null;
+  }
+}
+
+/**
  * Notify showroom manager about cancellation
  */
 async function notifyShowroomManager(meeting) {
@@ -415,9 +466,8 @@ async function notifyShowroomManager(meeting) {
     const hostId = meeting.Owner?.id;
     if (!hostId) return;
 
-    // Get host's showroom
-    const userResp = await ZOHO.CRM.API.getUser({ ID: hostId });
-    const user = userResp?.users?.[0];
+    // Get host's showroom (use cached version)
+    const user = await getCachedUser(hostId);
     
     // Try to find showroom from user profile or related field
     const showroomId = user?.Showroom?.id || user?.Showroom_c || user?.showroom_id;
@@ -461,10 +511,10 @@ async function sendInternalNotification(userId, title, message) {
   } catch (err) {
     console.warn("Could not send internal notification:", err);
     
-    // Fallback: Try to send via email
+    // Fallback: Try to send via email (use cached version)
     try {
-      const userResp = await ZOHO.CRM.API.getUser({ ID: userId });
-      const userEmail = userResp?.users?.[0]?.email;
+      const user = await getCachedUser(userId);
+      const userEmail = user?.email;
       
       if (userEmail) {
         await ZOHO.CRM.API.sendMail({
